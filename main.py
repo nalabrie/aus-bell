@@ -5,7 +5,7 @@
 
 from datetime import datetime, timedelta
 from os import chdir, mkdir
-from subprocess import run
+from subprocess import Popen
 from sys import exit
 from time import sleep
 
@@ -17,9 +17,9 @@ from yt_dlp import YoutubeDL
 BELL = []  # bell schedule list
 URLS = []  # list of URLs for media to download
 OPTS = {  # yt-dlp arguments
-    'format':         'mp3/bestaudio/best',
+    'format': 'mp3/bestaudio/best',
     'postprocessors': [{
-        'key':            'FFmpegExtractAudio',
+        'key': 'FFmpegExtractAudio',
         'preferredcodec': 'mp3',
     }]
 }
@@ -80,22 +80,27 @@ def read_url_file():
             while line := f.readline().rstrip():
                 URLS.append(line)
     except FileNotFoundError:
-        print('"Links.txt" does not exist, exiting now')
+        print('"links.txt" does not exist, exiting now')
         exit(1)
 
 
 def download_all():
     """
-    Download all URLs in list with yt-dlp.
+    Download all media from URLs in list with yt-dlp.
     """
     with YoutubeDL(OPTS) as ydl:
         extracted_urls = []
         for link in URLS:
+            # extract the audio track URL from each link
             extracted_urls.append(ydl.extract_info(link, download=False)["url"])
     for i, link in enumerate(extracted_urls):
-        run(f"ffmpeg -ss 00:00:00 -to 00:00:30 -i {link} -vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{i}.mp3")
+        # using FFmpeg:
+        #   1. download all media at the same time
+        #   2. convert first 1 minute to a mp3 file
+        #   3. output file names are sequential
+        Popen(f"ffmpeg -ss 00:00:00 -to 00:01:00 -i {link} -vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{i}.mp3")
 
-    
+
 def main():
     """
     Main program routine. Runs when script is executed.
