@@ -1,20 +1,24 @@
 #!/usr/bin/env python
 
-# External dependencies needed to run this script:
-#   1. FFmpeg (somewhere in PATH)
-
+import pickle
 from datetime import datetime, timedelta
 from os import chdir, mkdir
+from subprocess import Popen
 from sys import exit
 from time import sleep
 
 from playsound import playsound
 from yt_dlp import YoutubeDL
 
+# External dependencies needed to run this script:
+#   1. ffmpeg (somewhere in PATH)
+
 # ---- GLOBALS ----
 
+COUNT = 0  # counter for naming downloaded media files
 BELL = []  # bell schedule list
-URLS = []  # list of URLs for media to download
+URLS = []  # list of URLs to media to be downloaded
+PREV_URLS = []  # list of URLs that were used the previous time the URL list was loaded from "links.txt"
 OPTS = {  # yt-dlp arguments
     'format': 'mp3/bestaudio/best',
     'postprocessors': [{
@@ -25,6 +29,30 @@ OPTS = {  # yt-dlp arguments
 
 
 # ---- FUNCTIONS ----
+
+def save_cache():
+    """
+    Save the state of needed variables (using Pickle) for the next time this script is ran.
+    """
+    state = (COUNT, PREV_URLS)
+    with open("../cache.dat", "wb") as f:
+        pickle.dump(state, f, pickle.HIGHEST_PROTOCOL)
+
+
+def load_cache():
+    """
+    Load the cache from the Pickle file. If there is no cache file, do nothing.
+    """
+    try:
+        with open("../cache.dat", "rb") as f:
+            state = pickle.load(f)
+    except FileNotFoundError:
+        print("no cache file found, skipping cache load")
+        return
+    global COUNT, PREV_URLS
+    COUNT = state[0]
+    PREV_URLS = state[1]
+
 
 def play_media(path):
     playsound(path, block=False)
@@ -79,16 +107,41 @@ def read_url_file():
             while line := f.readline().rstrip():
                 URLS.append(line)
     except FileNotFoundError:
-        print('"Links.txt" does not exist, exiting now')
+        print('"links.txt" does not exist, exiting now')
         exit(1)
 
 
 def download_all():
     """
-    Download all URLs in list with yt-dlp.
+    Downloads all media from URLs in list with yt-dlp,
+    converts first 1 minute to mp3,
+    updates previous URL list (PREV_URLS).
     """
     with YoutubeDL(OPTS) as ydl:
-        ydl.download(URLS)
+        extracted_urls = []
+        for link in URLS:
+            # extract the audio track URL from each link
+            extracted_urls.append(ydl.extract_info(link, download=False)["url"])
+    global COUNT, PREV_URLS
+    PREV_URLS = URLS.copy()  # URLs are done being extracted, so copy list to previous URL list
+    ffmpeg_processes = []
+    print(f"Downloading {len(extracted_urls)} files with ffmpeg")
+    for link in extracted_urls:
+        # using ffmpeg:
+        #   1. download all media at the same time
+        #   2. convert first 1 minute to a mp3 file
+        #   3. output file names are sequential (sequence is saved and can resume next run)
+        #   4. wait to return until all ffmpeg instances are finished
+        ffmpeg_processes.append(
+            Popen(
+                f"ffmpeg -loglevel quiet -n -ss 00:00:00 -to 00:01:00 -i {link} -vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{COUNT}.mp3"))
+        COUNT += 1
+    for process in ffmpeg_processes:
+        # wait for all downloads to finish
+        while process.poll() is None:
+            sleep(0.5)
+        else:
+            print(f"ffmpeg PID {process.pid} is finished")
 
 
 def main():
@@ -96,9 +149,11 @@ def main():
     Main program routine. Runs when script is executed.
     """
     setup_dirs()
+    load_cache()
     create_bell_schedule()
     read_url_file()
     download_all()
+    save_cache()
 
 
 # ---- MAIN PROGRAM ----
