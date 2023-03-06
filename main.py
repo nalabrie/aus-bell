@@ -7,6 +7,7 @@ from subprocess import Popen
 from sys import exit
 from time import sleep
 
+from openpyxl import load_workbook
 from playsound import playsound
 from yt_dlp import YoutubeDL
 
@@ -18,7 +19,7 @@ from yt_dlp import YoutubeDL
 COUNT = 0  # counter for naming downloaded media files
 BELL = []  # bell schedule list
 URLS = []  # list of URLs to media to be downloaded
-PREV_URLS = []  # list of URLs that were used the previous time the URL list was loaded from "links.txt"
+PREV_URLS = []  # list of URLs that were used the previous time the URL list was loaded from "links.xlsx"
 OPTS = {  # yt-dlp arguments
     'format': 'mp3/bestaudio/best',
     'postprocessors': [{
@@ -99,15 +100,18 @@ def setup_dirs():
 
 def read_url_file():
     """
-    Read list of URLs from "links.txt" and store them in the global "URLS" variable.
+    Read list of URLs from "links.xlsx" spreadsheet and store them in the global "URLS" variable.
     """
     try:
-        with open("../links.txt") as f:
-            URLS.clear()  # clear URL list in case it already contains old data from previous day
-            while line := f.readline().rstrip():
-                URLS.append(line)
+        URLS.clear()  # clear URL list in case it already contains old data from previous day
+        wb = load_workbook(filename="../links.xlsx")
+        ws = wb["Sheet1"]
+        for row in ws.iter_rows(max_col=1, values_only=True):
+            link = row[0]
+            if link is not None:
+                URLS.append(link)
     except FileNotFoundError:
-        print('"links.txt" does not exist, exiting now')
+        print('"links.xlsx" does not exist, exiting now')
         exit(1)
 
 
@@ -152,8 +156,9 @@ def main():
     load_cache()
     create_bell_schedule()
     read_url_file()
-    download_all()
-    save_cache()
+    # download_all()
+    # save_cache()
+    print(URLS)
 
 
 # ---- MAIN PROGRAM ----
