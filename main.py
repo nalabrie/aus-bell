@@ -2,7 +2,7 @@
 
 import pickle
 from datetime import datetime, timedelta
-from os import chdir, mkdir
+from os import chdir, mkdir, path, getenv
 from subprocess import Popen
 from sys import exit
 from time import sleep
@@ -20,8 +20,10 @@ COUNT = 0  # counter for naming downloaded media files
 BELL = []  # bell schedule list
 URLS = []  # list of URLs to media to be downloaded
 PREV_URLS = []  # list of URLs that were used the previous time the URL list was loaded from "links.xlsx"
+LINKS_PATH = None  # file path to "links.xlsx"
 OPTS = {  # yt-dlp arguments
     'format': 'mp3/bestaudio/best',
+    'ignoreerrors': True,
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
         'preferredcodec': 'mp3',
@@ -55,8 +57,8 @@ def load_cache():
     PREV_URLS = state[1]
 
 
-def play_media(path):
-    playsound(path, block=False)
+def play_media(file_path):
+    playsound(file_path, block=False)
 
 
 def sleep_until(target: datetime):
@@ -98,20 +100,29 @@ def setup_dirs():
     chdir("media")
 
 
+def setup_paths():
+    """
+    Prepare needed file paths.
+    """
+    global LINKS_PATH
+    home = getenv("USERPROFILE")
+    LINKS_PATH = path.join(home, "OneDrive", "OneDrive - ausohio.com", "bell", "links.xlsx")
+
+
 def read_url_file():
     """
     Read list of URLs from "links.xlsx" spreadsheet and store them in the global "URLS" variable.
     """
     try:
         URLS.clear()  # clear URL list in case it already contains old data from previous day
-        wb = load_workbook(filename="../links.xlsx")
+        wb = load_workbook(filename=LINKS_PATH)
         ws = wb["Sheet1"]
         for row in ws.iter_rows(max_col=1, values_only=True):
             link = row[0]
             if link is not None:
                 URLS.append(link)
     except FileNotFoundError:
-        print('"links.xlsx" does not exist, exiting now')
+        print(f'"{LINKS_PATH}" does not exist, exiting now')
         exit(1)
 
 
@@ -125,8 +136,13 @@ def download_all():
         extracted_urls = []
         for link in URLS:
             # extract the audio track URL from each link
-            extracted_urls.append(ydl.extract_info(link, download=False)["url"])
+            try:
+                extracted_urls.append(ydl.extract_info(link, download=False)["url"])
+            except TypeError:
+                # tried to download an invalid link, just skip this one
+                pass
     global COUNT, PREV_URLS
+    PREV_URLS.clear()
     PREV_URLS = URLS.copy()  # URLs are done being extracted, so copy list to previous URL list
     ffmpeg_processes = []
     print(f"Downloading {len(extracted_urls)} files with ffmpeg")
@@ -153,12 +169,12 @@ def main():
     Main program routine. Runs when script is executed.
     """
     setup_dirs()
+    setup_paths()
     load_cache()
     create_bell_schedule()
     read_url_file()
-    # download_all()
-    # save_cache()
-    print(URLS)
+    download_all()
+    save_cache()
 
 
 # ---- MAIN PROGRAM ----
