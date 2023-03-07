@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-import pickle
+import fnmatch
 from datetime import datetime, timedelta
-from os import chdir, mkdir, path, getenv
+from os import chdir, mkdir, path, getenv, listdir
+from random import shuffle
 from subprocess import Popen
 from sys import exit
 from time import sleep
@@ -16,11 +17,11 @@ from yt_dlp import YoutubeDL
 
 # ---- GLOBALS ----
 
-COUNT = 0  # counter for naming downloaded media files
-BELL = []  # bell schedule list
+MEDIA_FILE_COUNT = 0  # counter for naming downloaded media files
+BELL_SCHEDULE = []  # bell schedule list
 URLS = []  # list of URLs to media to be downloaded
-PREV_URLS = []  # list of URLs that were used the previous time the URL list was loaded from "links.xlsx"
 LINKS_PATH = None  # file path to "links.xlsx"
+PLAYLIST = []  # bell play order
 OPTS = {  # yt-dlp arguments
     'format': 'mp3/bestaudio/best',
     'ignoreerrors': True,
@@ -33,32 +34,24 @@ OPTS = {  # yt-dlp arguments
 
 # ---- FUNCTIONS ----
 
-def save_cache():
-    """
-    Save the state of needed variables (using Pickle) for the next time this script is ran.
-    """
-    state = (COUNT, PREV_URLS)
-    with open("../cache.dat", "wb") as f:
-        pickle.dump(state, f, pickle.HIGHEST_PROTOCOL)
-
-
-def load_cache():
-    """
-    Load the cache from the Pickle file. If there is no cache file, do nothing.
-    """
-    try:
-        with open("../cache.dat", "rb") as f:
-            state = pickle.load(f)
-    except FileNotFoundError:
-        print("no cache file found, skipping cache load")
-        return
-    global COUNT, PREV_URLS
-    COUNT = state[0]
-    PREV_URLS = state[1]
-
-
 def play_media(file_path):
     playsound(file_path, block=False)
+
+
+def set_play_order():
+    """
+    Sets the order that the bell will play.
+    """
+    # for each file in media folder...
+    for file in fnmatch.filter(listdir(), 'bell_*.mp3'):
+        PLAYLIST.append(file)
+    shuffle(PLAYLIST)
+
+
+def ring_bell():
+    song = PLAYLIST.pop()
+    print(f"playing file: {song}")
+    play_media(song)
 
 
 def sleep_until(target: datetime):
@@ -78,15 +71,15 @@ def sleep_until(target: datetime):
 
 
 def create_bell_schedule():
-    BELL.clear()  # clear bell schedule in case it already contains old data from previous day
+    BELL_SCHEDULE.clear()  # clear bell schedule in case it already contains old data from previous day
     today = datetime.now().replace(second=0, microsecond=0)
-    BELL.append(today.replace(hour=9, minute=15))
-    BELL.append(today.replace(hour=10, minute=12))
-    BELL.append(today.replace(hour=11, minute=15))
-    BELL.append(today.replace(hour=12, minute=12))
-    BELL.append(today.replace(hour=13, minute=42))
-    BELL.append(today.replace(hour=14, minute=42))
-    BELL.append(today.replace(hour=15, minute=40))
+    BELL_SCHEDULE.append(today.replace(hour=9, minute=15))
+    BELL_SCHEDULE.append(today.replace(hour=10, minute=12))
+    BELL_SCHEDULE.append(today.replace(hour=11, minute=15))
+    BELL_SCHEDULE.append(today.replace(hour=12, minute=12))
+    BELL_SCHEDULE.append(today.replace(hour=13, minute=42))
+    BELL_SCHEDULE.append(today.replace(hour=14, minute=42))
+    BELL_SCHEDULE.append(today.replace(hour=15, minute=40))
 
 
 def setup_dirs():
@@ -109,6 +102,12 @@ def setup_paths():
     LINKS_PATH = path.join(home, "OneDrive", "OneDrive - ausohio.com", "bell", "links.xlsx")
 
 
+def set_count():
+    global MEDIA_FILE_COUNT
+    for _ in fnmatch.filter(listdir(), 'bell_*.mp3'):
+        MEDIA_FILE_COUNT += 1
+
+
 def read_url_file():
     """
     Read list of URLs from "links.xlsx" spreadsheet and store them in the global "URLS" variable.
@@ -117,7 +116,7 @@ def read_url_file():
         URLS.clear()  # clear URL list in case it already contains old data from previous day
         wb = load_workbook(filename=LINKS_PATH)
         ws = wb["Sheet1"]
-        for row in ws.iter_rows(max_col=1, values_only=True):
+        for row in ws.iter_rows(min_row=MEDIA_FILE_COUNT + 1, max_col=1, values_only=True):
             link = row[0]
             if link is not None:
                 URLS.append(link)
@@ -130,7 +129,6 @@ def download_all():
     """
     Downloads all media from URLs in list with yt-dlp,
     converts first 1 minute to mp3,
-    updates previous URL list (PREV_URLS).
     """
     with YoutubeDL(OPTS) as ydl:
         extracted_urls = []
@@ -141,9 +139,7 @@ def download_all():
             except TypeError:
                 # tried to download an invalid link, just skip this one
                 pass
-    global COUNT, PREV_URLS
-    PREV_URLS.clear()
-    PREV_URLS = URLS.copy()  # URLs are done being extracted, so copy list to previous URL list
+    global MEDIA_FILE_COUNT
     ffmpeg_processes = []
     print(f"Downloading {len(extracted_urls)} files with ffmpeg")
     for link in extracted_urls:
@@ -154,8 +150,8 @@ def download_all():
         #   4. wait to return until all ffmpeg instances are finished
         ffmpeg_processes.append(
             Popen(
-                f"ffmpeg -loglevel quiet -n -ss 00:00:00 -to 00:01:00 -i {link} -vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{COUNT}.mp3"))
-        COUNT += 1
+                f"ffmpeg -loglevel quiet -n -ss 00:00:00 -to 00:01:00 -i {link} -vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{MEDIA_FILE_COUNT}.mp3"))
+        MEDIA_FILE_COUNT += 1
     for process in ffmpeg_processes:
         # wait for all downloads to finish
         while process.poll() is None:
@@ -170,11 +166,18 @@ def main():
     """
     setup_dirs()
     setup_paths()
-    load_cache()
+    set_count()
     create_bell_schedule()
     read_url_file()
     download_all()
-    save_cache()
+    set_play_order()
+    for time in BELL_SCHEDULE:
+        try:
+            sleep_until(time)
+        except ValueError:
+            # bell has already happened, so skip it
+            continue
+        ring_bell()
 
 
 # ---- MAIN PROGRAM ----
