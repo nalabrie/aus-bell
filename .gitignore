@@ -162,7 +162,9 @@ cython_debug/
 #.idea/
 
 # ---- CUSTOM IGNORED FILES/FOLDERS ----
+
 /media/
 /links.txt
 /cache.dat
 /links.xlsx
+/bell.log

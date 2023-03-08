@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import fnmatch
+import logging
 from datetime import datetime, timedelta
 from os import chdir, mkdir, path, getenv, listdir
 from random import shuffle
@@ -20,7 +21,8 @@ from yt_dlp import YoutubeDL
 MEDIA_FILE_COUNT = 0  # counter for naming downloaded media files
 BELL_SCHEDULE = []  # bell schedule list
 URLS = []  # list of URLs to media to be downloaded
-LINKS_PATH = None  # file path to "links.xlsx"
+LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
+LOG_PATH = None  # file path to "bell.log" (where the logger saves to)
 PLAYLIST = []  # bell play order
 OPTS = {  # yt-dlp arguments
     'format': 'mp3/bestaudio/best',
@@ -97,15 +99,23 @@ def setup_paths():
     """
     Prepare needed file paths.
     """
-    global LINKS_PATH
+    global LINKS_PATH, LOG_PATH
     home = getenv("USERPROFILE")
     LINKS_PATH = path.join(home, "OneDrive", "OneDrive - ausohio.com", "bell", "links.xlsx")
+    LOG_PATH = path.join(home, "OneDrive", "OneDrive - ausohio.com", "bell", "bell.log")
 
 
 def set_count():
     global MEDIA_FILE_COUNT
     for _ in fnmatch.filter(listdir(), 'bell_*.mp3'):
         MEDIA_FILE_COUNT += 1
+
+
+def setup_logging():
+    """
+    Sets up the config for the logger.
+    """
+    logging.basicConfig(format='%(asctime)s %(message)s', filename=LOG_PATH, level=logging.DEBUG)
 
 
 def read_url_file():
@@ -166,6 +176,8 @@ def main():
     """
     setup_dirs()
     setup_paths()
+    setup_logging()
+    logging.info("Script started")
     set_count()
     create_bell_schedule()
     read_url_file()
