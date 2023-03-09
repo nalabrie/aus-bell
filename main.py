@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# External dependencies needed to run this script:
+#   1. ffmpeg (somewhere in PATH)
+
 import fnmatch
 import logging
 from datetime import datetime, timedelta
@@ -13,25 +16,22 @@ from openpyxl import load_workbook
 from playsound import playsound
 from yt_dlp import YoutubeDL
 
-# External dependencies needed to run this script:
-#   1. ffmpeg (somewhere in PATH)
 
-# ---- GLOBALS ----
+# ---- CLASSES ----
 
-MEDIA_FILE_COUNT = 0  # counter for naming downloaded media files
-BELL_SCHEDULE = []  # bell schedule list
-URLS = []  # list of URLs to media to be downloaded
-LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
-LOG_PATH = ""  # file path to "bell.log" (where the logger saves to)
-PLAYLIST = []  # bell play order
-OPTS = {  # yt-dlp arguments
-    'format': 'mp3/bestaudio/best',
-    'ignoreerrors': True,
-    'postprocessors': [{
-        'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'mp3',
-    }]
-}
+class DummyLogger:
+    # This class is needed to disable the output from yt-dlp
+    def debug(self, msg):
+        pass
+
+    def info(self, msg):
+        pass
+
+    def warning(self, msg):
+        pass
+
+    def error(self, msg):
+        pass
 
 
 # ---- FUNCTIONS ----
@@ -48,6 +48,7 @@ def set_play_order():
     for file in fnmatch.filter(listdir(), 'bell_*.mp3'):
         PLAYLIST.append(file)
     shuffle(PLAYLIST)
+    logging.info(f"playlist with {len(PLAYLIST)} songs has been shuffled")
 
 
 def ring_bell():
@@ -73,7 +74,6 @@ def sleep_until(target: datetime):
 
 
 def create_bell_schedule():
-    BELL_SCHEDULE.clear()  # clear bell schedule in case it already contains old data from previous day
     today = datetime.now().replace(second=0, microsecond=0)
     BELL_SCHEDULE.append(today.replace(hour=9, minute=15))
     BELL_SCHEDULE.append(today.replace(hour=10, minute=12))
@@ -115,7 +115,7 @@ def setup_logging():
     """
     Sets up the config for the logger.
     """
-    logging.basicConfig(format='%(levelname)s: %(asctime)s %(message)s',
+    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s',
                         level=logging.DEBUG,
                         handlers=[
                             # logs to console and log file
@@ -130,7 +130,6 @@ def read_url_file():
     Read list of URLs from "links.xlsx" spreadsheet and store them in the global "URLS" variable.
     """
     try:
-        URLS.clear()  # clear URL list in case it already contains old data from previous day
         wb = load_workbook(filename=LINKS_PATH)
         ws = wb["Sheet1"]
         for row in ws.iter_rows(min_row=MEDIA_FILE_COUNT + 1, max_col=1, values_only=True):
@@ -149,12 +148,15 @@ def download_all():
     """
     with YoutubeDL(OPTS) as ydl:
         extracted_urls = []
+        logging.info(f"extracting audio URLs from {len(URLS)} links with yt-dlp")
         for link in URLS:
             # extract the audio track URL from each link
             try:
                 extracted_urls.append(ydl.extract_info(link, download=False)["url"])
+                logging.info(f"yt-dlp extracted the audio URL for {link}")
             except TypeError:
                 # tried to download an invalid link, just skip this one
+                logging.warning(f"yt-dlp skipped an invalid URL: {link}")
                 pass
     global MEDIA_FILE_COUNT
     ffmpeg_processes = []
@@ -201,4 +203,26 @@ def main():
 # ---- MAIN PROGRAM ----
 
 if __name__ == '__main__':
+    # ---- GLOBALS ----
+
+    # all global variables needed for "main()"
+    MEDIA_FILE_COUNT = 0  # counter for naming downloaded media files
+    BELL_SCHEDULE = []  # bell schedule list
+    URLS = []  # list of URLs to media to be downloaded
+    LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
+    LOG_PATH = ""  # file path to "bell.log" (where the logger saves to)
+    PLAYLIST = []  # bell play order
+    OPTS = {  # yt-dlp arguments
+        'format': 'mp3/bestaudio/best',
+        'ignoreerrors': True,
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+        }],
+        "quiet": True,
+        "noprogress": True,
+        "no_warnings": True,
+        "logger": DummyLogger()
+    }
+
     main()
