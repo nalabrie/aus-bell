@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from os import chdir, mkdir, path, getenv, listdir
 from random import shuffle
 from subprocess import Popen
-from sys import exit
+from sys import exit, stdout
 from time import sleep
 
 from openpyxl import load_workbook
@@ -22,7 +22,7 @@ MEDIA_FILE_COUNT = 0  # counter for naming downloaded media files
 BELL_SCHEDULE = []  # bell schedule list
 URLS = []  # list of URLs to media to be downloaded
 LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
-LOG_PATH = None  # file path to "bell.log" (where the logger saves to)
+LOG_PATH = ""  # file path to "bell.log" (where the logger saves to)
 PLAYLIST = []  # bell play order
 OPTS = {  # yt-dlp arguments
     'format': 'mp3/bestaudio/best',
@@ -52,7 +52,7 @@ def set_play_order():
 
 def ring_bell():
     song = PLAYLIST.pop()
-    print(f"playing file: {song}")
+    logging.info(f"playing file: {song}")
     play_media(song)
 
 
@@ -66,7 +66,7 @@ def sleep_until(target: datetime):
     delta = target - now
 
     if delta > timedelta(0):
-        print(f"Sleeping script until {target.ctime()}")
+        logging.info(f"Sleeping script until {target.ctime()}")
         sleep(delta.total_seconds())
     else:
         raise ValueError('"sleep_until()" cannot sleep a negative amount of time.')
@@ -115,7 +115,14 @@ def setup_logging():
     """
     Sets up the config for the logger.
     """
-    logging.basicConfig(format='%(asctime)s %(message)s', filename=LOG_PATH, level=logging.DEBUG)
+    logging.basicConfig(format='%(levelname)s: %(asctime)s %(message)s',
+                        level=logging.DEBUG,
+                        handlers=[
+                            # logs to console and log file
+                            logging.StreamHandler(stdout),
+                            logging.FileHandler(filename=LOG_PATH, mode='w')
+                        ])
+    logging.info("Script started, logging initiated")
 
 
 def read_url_file():
@@ -131,7 +138,7 @@ def read_url_file():
             if link is not None:
                 URLS.append(link)
     except FileNotFoundError:
-        print(f'"{LINKS_PATH}" does not exist, exiting now')
+        logging.critical(f'"{LINKS_PATH}" does not exist, exiting now')
         exit(1)
 
 
@@ -151,7 +158,7 @@ def download_all():
                 pass
     global MEDIA_FILE_COUNT
     ffmpeg_processes = []
-    print(f"Downloading {len(extracted_urls)} files with ffmpeg")
+    logging.info(f"Downloading {len(extracted_urls)} files with ffmpeg")
     for link in extracted_urls:
         # using ffmpeg:
         #   1. download all media at the same time
@@ -167,7 +174,7 @@ def download_all():
         while process.poll() is None:
             sleep(0.5)
         else:
-            print(f"ffmpeg PID {process.pid} is finished")
+            logging.info(f"ffmpeg PID {process.pid} is finished")
 
 
 def main():
@@ -177,7 +184,6 @@ def main():
     setup_dirs()
     setup_paths()
     setup_logging()
-    logging.info("Script started")
     set_count()
     create_bell_schedule()
     read_url_file()
