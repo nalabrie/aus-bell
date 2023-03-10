@@ -130,7 +130,7 @@ def read_url_file():
     Read list of URLs from "links.xlsx" spreadsheet and store them in the global "URLS" variable.
     """
     try:
-        wb = load_workbook(filename=LINKS_PATH)
+        wb = load_workbook(filename=LINKS_PATH, read_only=True)
         ws = wb["Sheet1"]
         for row in ws.iter_rows(min_row=MEDIA_FILE_COUNT + 1, max_col=1, values_only=True):
             link = row[0]
