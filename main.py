@@ -200,29 +200,27 @@ def main():
         ring_bell()
 
 
-# ---- MAIN PROGRAM ----
+# ---- GLOBALS ----
+
+# all global variables needed for "main()"
+MEDIA_FILE_COUNT = 0  # counter for naming downloaded media files
+BELL_SCHEDULE = []  # bell schedule list
+URLS = []  # list of URLs to media to be downloaded
+LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
+LOG_PATH = ""  # file path to "bell.log" (where the logger saves to)
+PLAYLIST = []  # bell play order
+OPTS = {  # yt-dlp arguments
+    'format': 'mp3/bestaudio/best',
+    'ignoreerrors': True,
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+    }],
+    "quiet": True,
+    "noprogress": True,
+    "no_warnings": True,
+    "logger": DummyLogger()
+}
 
 if __name__ == '__main__':
-    # ---- GLOBALS ----
-
-    # all global variables needed for "main()"
-    MEDIA_FILE_COUNT = 0  # counter for naming downloaded media files
-    BELL_SCHEDULE = []  # bell schedule list
-    URLS = []  # list of URLs to media to be downloaded
-    LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
-    LOG_PATH = ""  # file path to "bell.log" (where the logger saves to)
-    PLAYLIST = []  # bell play order
-    OPTS = {  # yt-dlp arguments
-        'format': 'mp3/bestaudio/best',
-        'ignoreerrors': True,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-        }],
-        "quiet": True,
-        "noprogress": True,
-        "no_warnings": True,
-        "logger": DummyLogger()
-    }
-
     main()
