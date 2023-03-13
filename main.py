@@ -102,10 +102,12 @@ def setup_paths():
     LOG_PATH = path.join(home, "OneDrive", "OneDrive - ausohio.com", "bell", "bell.log")
 
 
-def set_count():
-    global MEDIA_FILE_COUNT
-    for _ in fnmatch.filter(listdir(), 'bell_*.mp3'):
-        MEDIA_FILE_COUNT += 1
+def set_current_media_list():
+    """
+    Fills out the global "CURRENT_MEDIA_LIST" with "bell numbers".
+    """
+    for file in fnmatch.filter(listdir(), 'bell_*.mp3'):
+        CURRENT_MEDIA_LIST.append(int(file[5]))
 
 
 def setup_logging():
@@ -125,14 +127,17 @@ def setup_logging():
 def read_url_file():
     """
     Read list of URLs from "links.xlsx" spreadsheet and store them in the global "URLS" variable.
+    Also sets up the global "NEEDED_MEDIA_LIST" list.
     """
     try:
         wb = load_workbook(filename=LINKS_PATH, read_only=True)
         ws = wb["Sheet1"]
-        for row in ws.iter_rows(min_row=MEDIA_FILE_COUNT + 1, max_col=1, values_only=True):
-            link = row[0]
-            if link is not None:
-                URLS.append(link)
+        for count, row in enumerate(ws.iter_rows(max_col=1, values_only=True)):
+            if count not in CURRENT_MEDIA_LIST:
+                link = row[0]
+                if link is not None:
+                    URLS.append(link)
+                    NEEDED_MEDIA_LIST.append(count)
     except FileNotFoundError:
         logging.critical(f'"{LINKS_PATH}" does not exist, exiting now')
         exit(1)
@@ -154,11 +159,14 @@ def download_all():
             except TypeError:
                 # tried to download an invalid link, just skip this one
                 logging.warning(f"yt-dlp skipped an invalid URL: {link}")
-                pass
-    global MEDIA_FILE_COUNT
+                extracted_urls.append(None)
+                continue
     ffmpeg_processes = []
     logging.info(f"Downloading {len(extracted_urls)} files with ffmpeg")
-    for link in extracted_urls:
+    for file_num, link in zip(NEEDED_MEDIA_LIST, extracted_urls):
+        if link is None:
+            # skip invalid link
+            continue
         # using ffmpeg:
         #   1. download all media at the same time
         #   2. convert first 1 minute to a mp3 file
@@ -166,8 +174,7 @@ def download_all():
         #   4. wait to return until all ffmpeg instances are finished
         ffmpeg_processes.append(
             Popen(
-                f"../ffmpeg -loglevel quiet -n -ss 00:00:00 -to 00:01:00 -i {link} -vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{MEDIA_FILE_COUNT}.mp3"))
-        MEDIA_FILE_COUNT += 1
+                f"../ffmpeg -loglevel quiet -n -ss 00:00:00 -to 00:01:00 -i {link} -vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{file_num}.mp3"))
     for process in ffmpeg_processes:
         # wait for all downloads to finish
         while process.poll() is None:
@@ -183,7 +190,7 @@ def main():
     setup_dirs()
     setup_paths()
     setup_logging()
-    set_count()
+    set_current_media_list()
     create_bell_schedule()
     read_url_file()
     download_all()
@@ -200,7 +207,8 @@ def main():
 # ---- GLOBALS ----
 
 # all global variables needed for "main()"
-MEDIA_FILE_COUNT = 0  # counter for naming downloaded media files
+CURRENT_MEDIA_LIST = []  # list of numbers representing available media files
+NEEDED_MEDIA_LIST = []  # list of numbers representing the needed media files
 BELL_SCHEDULE = []  # bell schedule list
 URLS = []  # list of URLs to media to be downloaded
 LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
