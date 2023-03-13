@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-# External dependencies needed to run this script:
-#   1. ffmpeg (somewhere in PATH)
-
 import fnmatch
 import logging
 from datetime import datetime, timedelta
@@ -169,7 +166,7 @@ def download_all():
         #   4. wait to return until all ffmpeg instances are finished
         ffmpeg_processes.append(
             Popen(
-                f"ffmpeg -loglevel quiet -n -ss 00:00:00 -to 00:01:00 -i {link} -vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{MEDIA_FILE_COUNT}.mp3"))
+                f"../ffmpeg -loglevel quiet -n -ss 00:00:00 -to 00:01:00 -i {link} -vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{MEDIA_FILE_COUNT}.mp3"))
         MEDIA_FILE_COUNT += 1
     for process in ffmpeg_processes:
         # wait for all downloads to finish
