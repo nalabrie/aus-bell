@@ -174,7 +174,10 @@ def download_all():
         #   4. wait to return until all ffmpeg instances are finished
         ffmpeg_processes.append(
             Popen(
-                f"../ffmpeg -loglevel quiet -n -ss 00:00:00 -to 00:01:00 -i {link} -vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{file_num}.mp3"))
+                f"../ffmpeg -loglevel quiet -n -ss 00:00:00 -to 00:{MEDIA_LENGTH} -i {link} "
+                f"-vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{file_num}.mp3"
+            )
+        )
     for process in ffmpeg_processes:
         # wait for all downloads to finish
         while process.poll() is None:
@@ -207,6 +210,7 @@ def main():
 # ---- GLOBALS ----
 
 # all global variables needed for "main()"
+MEDIA_LENGTH = "01:00"  # max length to trim downloaded media in MM:SS format (string)
 CURRENT_MEDIA_LIST = []  # list of numbers representing available media files
 NEEDED_MEDIA_LIST = []  # list of numbers representing the needed media files
 BELL_SCHEDULE = []  # bell schedule list
