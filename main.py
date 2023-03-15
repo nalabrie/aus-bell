@@ -34,7 +34,7 @@ class DummyLogger:
 # ---- FUNCTIONS ----
 
 def play_media(file_path):
-    playsound(file_path, block=False)
+    playsound(file_path, block=True)
 
 
 def set_play_order():
@@ -65,7 +65,10 @@ def sleep_until(target: datetime):
 
     if delta > timedelta(0):
         logging.info(f"Waiting until next bell at {target.strftime('%I:%M %p')}")
-        sleep(delta.total_seconds())
+        try:
+            sleep(delta.total_seconds())
+        except KeyboardInterrupt:
+            logging.warning(f"User requested to play the bell early at {datetime.now().strftime('%I:%M %p')}")
     else:
         raise ValueError('"sleep_until()" cannot sleep a negative amount of time.')
 
