@@ -64,7 +64,7 @@ def sleep_until(target: datetime):
     delta = target - now
 
     if delta > timedelta(0):
-        logging.info(f"Sleeping script until {target.ctime()}")
+        logging.info(f"Waiting until next bell at {target.strftime('%I:%M %p')}")
         sleep(delta.total_seconds())
     else:
         raise ValueError('"sleep_until()" cannot sleep a negative amount of time.')
@@ -210,7 +210,7 @@ def main():
 # ---- GLOBALS ----
 
 # all global variables needed for "main()"
-MEDIA_LENGTH = "01:00"  # max length to trim downloaded media in MM:SS format (string)
+MEDIA_LENGTH = "03:00"  # max length to trim downloaded media in MM:SS format (string)
 CURRENT_MEDIA_LIST = []  # list of numbers representing available media files
 NEEDED_MEDIA_LIST = []  # list of numbers representing the needed media files
 BELL_SCHEDULE = []  # bell schedule list
