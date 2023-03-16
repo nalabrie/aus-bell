@@ -186,8 +186,8 @@ def download_all():
             continue
         # using ffmpeg:
         #   1. download all media at the same time
-        #   2. convert first 1 minute to a mkv file
-        #   3. output file names are sequential (sequence is saved and can resume next run)
+        #   2. convert first "MEDIA_LENGTH" minute(s) to a mkv file (copy audio codec)
+        #   3. output file names are sequential (they match the order in spreadsheet)
         #   4. wait to return until all ffmpeg instances are finished
         ffmpeg_processes.append(
             Popen(

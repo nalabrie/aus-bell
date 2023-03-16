@@ -13,7 +13,7 @@
 
 #### Windows
 
-Run `setup.bat` to install/update all needed Python packages and download the latest `ffmpeg`.
+Run `setup.bat` to install/update all needed Python packages and download the latest `ffmpeg` and `ffplay`.
 
 #### MacOS/Linux
 
@@ -21,4 +21,4 @@ Instructions will be provided once the Unix setup scripts are finished.
 
 ### Usage
 
-Run `main.py` with a Python 3 interpreter to launch the program. Press `Ctrl+C` to play a bell before it is scheduled to run and press `Ctrl+C` again to stop the bell early if desired. Close the terminal to exit.
+Run `main.py` with a Python 3 interpreter to launch the program. Press `Ctrl + C` to play a bell before it is scheduled to run and press `Ctrl + C` again to stop the bell early if desired. Close the terminal to exit.
