@@ -21,4 +21,4 @@ Instructions will be provided once the Unix setup scripts are finished.
 
 ### Usage
 
-Run `main.py` with a Python 3 interpreter to launch the program. Press Ctrl-C to play a bell before it is scheduled to run. Close the terminal to exit.
+Run `main.py` with a Python 3 interpreter to launch the program. Press `Ctrl+C` to play a bell before it is scheduled to run. Close the terminal to exit.
