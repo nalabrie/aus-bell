@@ -1,3 +1,2 @@
 yt-dlp
-playsound==1.2.2
 openpyxl
