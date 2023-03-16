@@ -6,9 +6,10 @@ from datetime import datetime, timedelta
 from os import chdir, mkdir, path, getenv, listdir
 from random import shuffle
 from subprocess import Popen, run
-from sys import exit, stdout
+from sys import exit
 from time import sleep
 
+import coloredlogs
 from openpyxl import load_workbook
 from yt_dlp import YoutubeDL
 
@@ -128,13 +129,15 @@ def setup_logging():
     """
     Sets up the config for the logger.
     """
+    # initiate file logger
     logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s',
                         level=logging.DEBUG,
-                        handlers=[
-                            # logs to console and log file
-                            logging.StreamHandler(stdout),
-                            logging.FileHandler(filename=LOG_PATH, mode='w')
-                        ])
+                        filename=LOG_PATH,
+                        filemode='w'
+                        )
+
+    # initiate terminal logger (in color)
+    coloredlogs.install(level="DEBUG")
     logging.info("Script started, logging initiated")
 
 
@@ -219,6 +222,7 @@ def main():
             # bell has already happened, so skip it
             continue
         ring_bell()
+    logging.info("Script finished cleanly")
 
 
 # ---- GLOBALS ----
