@@ -5,12 +5,11 @@ import logging
 from datetime import datetime, timedelta
 from os import chdir, mkdir, path, getenv, listdir
 from random import shuffle
-from subprocess import Popen
+from subprocess import Popen, run
 from sys import exit, stdout
 from time import sleep
 
 from openpyxl import load_workbook
-from playsound import playsound
 from yt_dlp import YoutubeDL
 
 
@@ -34,7 +33,14 @@ class DummyLogger:
 # ---- FUNCTIONS ----
 
 def play_media(file_path):
-    playsound(file_path, block=True)
+    """
+    Plays audio files using "ffplay". Can be stopped early with "Ctrl+C".
+    :param file_path: Path to the audio file
+    """
+    try:
+        run(f"../ffplay -nodisp -autoexit -loglevel quiet {file_path}")
+    except KeyboardInterrupt:
+        logging.warning(f"User requested to stop the bell early at {datetime.now().strftime('%I:%M %p')}")
 
 
 def set_play_order():
@@ -49,6 +55,9 @@ def set_play_order():
 
 
 def ring_bell():
+    """
+    Rings the next bell in the playlist.
+    """
     song = PLAYLIST.pop()
     logging.info(f"playing file: {song}")
     play_media(song)
@@ -74,6 +83,9 @@ def sleep_until(target: datetime):
 
 
 def create_bell_schedule():
+    """
+    Initiates a list with the current day's bell schedule.
+    """
     today = datetime.now().replace(second=0, microsecond=0)
     BELL_SCHEDULE.append(today.replace(hour=9, minute=15))
     BELL_SCHEDULE.append(today.replace(hour=10, minute=12))

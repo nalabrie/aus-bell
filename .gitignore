@@ -170,3 +170,4 @@ cython_debug/
 /bell.log
 /ffmpeg.exe
 /dist.zip
+/ffplay.exe
