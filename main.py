@@ -48,7 +48,7 @@ def set_play_order():
     Sets the order that the bell will play.
     """
     # for each file in media folder...
-    for file in fnmatch.filter(listdir(), 'bell_*.mp3'):
+    for file in fnmatch.filter(listdir(), 'bell_*.mkv'):
         PLAYLIST.append(file)
     shuffle(PLAYLIST)
     logging.info(f"playlist with {len(PLAYLIST)} songs has been shuffled")
@@ -65,8 +65,7 @@ def ring_bell():
 
 def sleep_until(target: datetime):
     """
-    Sleeps script until the target date and time.
-
+    Sleeps script until the target date and time. Pressing "Ctrl+C" will cancel the sleep.
     :param target: date and time to sleep until (must be a "datetime" object)
     """
     now = datetime.now()
@@ -121,7 +120,7 @@ def set_current_media_list():
     """
     Fills out the global "CURRENT_MEDIA_LIST" with "bell numbers".
     """
-    for file in fnmatch.filter(listdir(), 'bell_*.mp3'):
+    for file in fnmatch.filter(listdir(), 'bell_*.mkv'):
         CURRENT_MEDIA_LIST.append(int(file[5]))
 
 
@@ -161,7 +160,7 @@ def read_url_file():
 def download_all():
     """
     Downloads all media from URLs in list with yt-dlp,
-    converts first 1 minute to mp3,
+    converts first "MEDIA_LENGTH" minute(s) to a mkv file (copies original codec)
     """
     with YoutubeDL(OPTS) as ydl:
         extracted_urls = []
@@ -184,13 +183,13 @@ def download_all():
             continue
         # using ffmpeg:
         #   1. download all media at the same time
-        #   2. convert first 1 minute to a mp3 file
+        #   2. convert first 1 minute to a mkv file
         #   3. output file names are sequential (sequence is saved and can resume next run)
         #   4. wait to return until all ffmpeg instances are finished
         ffmpeg_processes.append(
             Popen(
                 f"../ffmpeg -loglevel quiet -n -ss 00:00:00 -to 00:{MEDIA_LENGTH} -i {link} "
-                f"-vn -ar 44100 -ac 2 -ab 192k -f mp3 bell_{file_num}.mp3"
+                f"-vn -c:a copy bell_{file_num}.mkv"
             )
         )
     for process in ffmpeg_processes:
@@ -234,12 +233,8 @@ LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
 LOG_PATH = ""  # file path to "bell.log" (where the logger saves to)
 PLAYLIST = []  # bell play order
 OPTS = {  # yt-dlp arguments
-    'format': 'mp3/bestaudio/best',
+    'format': 'bestaudio/best',
     'ignoreerrors': True,
-    'postprocessors': [{
-        'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'mp3',
-    }],
     "quiet": True,
     "noprogress": True,
     "no_warnings": True,
