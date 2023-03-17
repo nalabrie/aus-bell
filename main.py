@@ -186,11 +186,13 @@ def read_url_file():
                     URLS.append(link)
                     NEEDED_MEDIA_LIST.append(count)
     except FileNotFoundError:
-        logging.critical(f'"{LINKS_PATH}" does not exist, exiting now')
+        logging.critical(f'"{LINKS_PATH}" does not exist, stopping now')
+        input("\nPress ENTER to exit")
         exit(1)
     except PermissionError:
         logging.critical(f'Permission was denied to read spreadsheet file (located at: "{LINKS_PATH}"). '
-                         'The file is likely open in Excel. Close Excel and run this script again. Exiting now.')
+                         'The file is likely open in Excel. Close Excel and run this script again. Stopping now.')
+        input("\nPress ENTER to exit")
         exit(1)
 
 
@@ -258,7 +260,8 @@ def main():
             # bell has already happened, so skip it
             continue
         ring_bell()
-    logging.info("Script finished cleanly")
+    logging.debug("Script finished cleanly")
+    input("\nPress ENTER to exit")
 
 
 # ---- GLOBALS ----
