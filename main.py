@@ -48,6 +48,16 @@ Close the terminal window to stop this script at any time.
     print(message)
 
 
+def show_bell_schedule():
+    """
+    Outputs the bell schedule to the logger.
+    """
+    logging.debug("Bell schedule:")
+    logging.debug("--------------")
+    for time in BELL_SCHEDULE:
+        logging.debug(time.strftime('%I:%M %p'))
+
+
 def play_media(file_path):
     """
     Plays audio files using "ffplay". Can be stopped early with "Ctrl+C".
@@ -119,6 +129,7 @@ def setup_dirs():
     """
     try:
         mkdir("media")
+        logging.info('"media" directory was created')
     except FileExistsError:
         pass
     chdir("media")
@@ -132,6 +143,8 @@ def setup_paths():
     home = getenv("USERPROFILE")
     LINKS_PATH = path.join(home, "OneDrive", "OneDrive - ausohio.com", "bell", "links.xlsx")
     LOG_PATH = path.join(home, "OneDrive", "OneDrive - ausohio.com", "bell", "bell.log")
+    logging.info(f'Path to links spreadsheet: "{LINKS_PATH}"')
+    logging.info(f'Path to log file: "{LOG_PATH}"')
 
 
 def set_current_media_list():
@@ -174,6 +187,10 @@ def read_url_file():
                     NEEDED_MEDIA_LIST.append(count)
     except FileNotFoundError:
         logging.critical(f'"{LINKS_PATH}" does not exist, exiting now')
+        exit(1)
+    except PermissionError:
+        logging.critical(f'Permission was denied to read spreadsheet file (located at: "{LINKS_PATH}"). '
+                         'The file is likely open in Excel. Close Excel and run this script again. Exiting now.')
         exit(1)
 
 
@@ -225,11 +242,12 @@ def main():
     Main program routine. Runs when script is executed.
     """
     show_intro()
+    setup_logging()
     setup_dirs()
     setup_paths()
-    setup_logging()
     set_current_media_list()
     create_bell_schedule()
+    show_bell_schedule()
     read_url_file()
     download_all()
     set_play_order()
