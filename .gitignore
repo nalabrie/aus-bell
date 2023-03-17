@@ -171,3 +171,4 @@ cython_debug/
 /ffmpeg.exe
 /dist.zip
 /ffplay.exe
+/VERSION

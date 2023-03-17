@@ -61,6 +61,17 @@ Close the terminal window to stop this script at any time.
     print(message)
 
 
+def show_version():
+    """
+    Outputs the script's version to the logger.
+    """
+    try:
+        with open("VERSION", mode='r') as f:
+            logging.info(f"aus-bell version {f.read(7)}")
+    except FileNotFoundError:
+        logging.error('"VERSION" file is missing, continuing anyway')
+
+
 def show_bell_schedule():
     """
     Outputs the bell schedule to the logger.
@@ -258,6 +269,7 @@ def main():
     """
     show_intro()
     setup_logging()
+    show_version()
     check_env()
     setup_dirs()
     setup_paths()
