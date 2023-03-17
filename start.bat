@@ -1,3 +1,3 @@
 @ECHO off
 
-start /max python main.py
+start "aus-bell" /max python main.py

@@ -5,6 +5,7 @@ import logging
 from datetime import datetime, timedelta
 from itertools import cycle
 from os import chdir, mkdir, path, getenv, listdir
+from os.path import isfile
 from random import shuffle
 from subprocess import Popen, run
 from sys import exit
@@ -33,6 +34,18 @@ class DummyLogger:
 
 
 # ---- FUNCTIONS ----
+
+def check_env():
+    """
+    Checks if all needed external dependencies are available. Exits script if any are missing.
+    """
+    # checks for ffmpeg and ffplay
+    if not isfile("ffmpeg.exe") or not isfile("ffplay.exe"):
+        logging.critical('Missing "ffmpeg" or "ffplay" (or both). '
+                         'If you are using Windows, run "setup.bat" to download both.')
+        input("\nPress ENTER to exit")
+        exit(1)
+
 
 def show_intro():
     """
@@ -245,6 +258,7 @@ def main():
     """
     show_intro()
     setup_logging()
+    check_env()
     setup_dirs()
     setup_paths()
     set_current_media_list()
