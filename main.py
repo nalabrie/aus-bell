@@ -3,6 +3,7 @@
 import fnmatch
 import logging
 from datetime import datetime, timedelta
+from itertools import cycle
 from os import chdir, mkdir, path, getenv, listdir
 from random import shuffle
 from subprocess import Popen, run
@@ -52,6 +53,8 @@ def set_play_order():
     for file in fnmatch.filter(listdir(), 'bell_*.mkv'):
         PLAYLIST.append(file)
     shuffle(PLAYLIST)
+    global PLAY_CYCLE
+    PLAY_CYCLE = cycle(PLAYLIST)
     logging.info(f"playlist with {len(PLAYLIST)} songs has been shuffled")
 
 
@@ -59,7 +62,7 @@ def ring_bell():
     """
     Rings the next bell in the playlist.
     """
-    song = PLAYLIST.pop()
+    song = next(PLAY_CYCLE)
     logging.info(f"playing file: {song}")
     play_media(song)
 
@@ -236,6 +239,7 @@ URLS = []  # list of URLs to media to be downloaded
 LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
 LOG_PATH = ""  # file path to "bell.log" (where the logger saves to)
 PLAYLIST = []  # bell play order
+PLAY_CYCLE = cycle([])  # circular list version of PLAYLIST
 OPTS = {  # yt-dlp arguments
     'format': 'bestaudio/best',
     'ignoreerrors': True,
