@@ -34,13 +34,27 @@ class DummyLogger:
 
 # ---- FUNCTIONS ----
 
+def show_intro():
+    """
+    Displays the intro message to the terminal at the start of the script.
+    """
+    message = '''
+        ---- Usage Instructions ----
+
+Press "Ctrl + C" to play the next bell immediately.
+Press "Ctrl + C" to stop playing the bell immediately.
+Close the terminal window to stop this script at any time.
+'''
+    print(message)
+
+
 def play_media(file_path):
     """
     Plays audio files using "ffplay". Can be stopped early with "Ctrl+C".
     :param file_path: Path to the audio file
     """
     try:
-        run(f"../ffplay -nodisp -autoexit -loglevel quiet {file_path}")
+        run(f"../ffplay -nodisp -autoexit -loglevel fatal {file_path}")
     except KeyboardInterrupt:
         logging.warning(f"User requested to stop the bell early at {datetime.now().strftime('%I:%M %p')}")
 
@@ -194,7 +208,7 @@ def download_all():
         #   4. wait to return until all ffmpeg instances are finished
         ffmpeg_processes.append(
             Popen(
-                f"../ffmpeg -loglevel quiet -n -ss 00:00:00 -to 00:{MEDIA_LENGTH} -i {link} "
+                f"../ffmpeg -loglevel fatal -n -ss 00:00:00 -to 00:{MEDIA_LENGTH} -i {link} "
                 f"-vn -c:a copy bell_{file_num}.mkv"
             )
         )
@@ -210,6 +224,7 @@ def main():
     """
     Main program routine. Runs when script is executed.
     """
+    show_intro()
     setup_dirs()
     setup_paths()
     setup_logging()
