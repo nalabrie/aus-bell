@@ -18,6 +18,10 @@
   * `links` spreadsheet should be 1 column of just URLs. Supported spreadsheet file types are: `.xlsx`, `.xlsm`, `.xltx`, `.xltm`.
   * Log file format is always `.log`.
   * **IMPORTANT**: Make sure all `\` in file paths are escaped like this: `\\`.
+* Edit `config.json` to supply the bell schedule.
+  * The `bell_schedule` array stores a dictionary of times in the following format: `{ "h": 13, "m": 42 }`
+  * Any amount of times can be added.
+  * **IMPORTANT**: Make sure `h` is in 24h format.
 
 #### MacOS/Linux
 

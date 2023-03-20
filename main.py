@@ -140,13 +140,8 @@ def create_bell_schedule():
     Initiates a list with the current day's bell schedule.
     """
     today = datetime.now().replace(second=0, microsecond=0)
-    BELL_SCHEDULE.append(today.replace(hour=9, minute=15))
-    BELL_SCHEDULE.append(today.replace(hour=10, minute=12))
-    BELL_SCHEDULE.append(today.replace(hour=11, minute=15))
-    BELL_SCHEDULE.append(today.replace(hour=12, minute=12))
-    BELL_SCHEDULE.append(today.replace(hour=13, minute=42))
-    BELL_SCHEDULE.append(today.replace(hour=14, minute=42))
-    BELL_SCHEDULE.append(today.replace(hour=15, minute=40))
+    for time in CFG_DICT["bell_schedule"]:
+        BELL_SCHEDULE.append(today.replace(hour=time['h'], minute=time['m']))
 
 
 def setup_dirs():
@@ -231,8 +226,7 @@ def read_url_file():
         exit(1)
     except openpyxl_InvalidFileException:
         logging.critical("Cannot not open links spreadsheet, it is an invalid file type. "
-                         "Supported formats are: .xlsx, .xlsm, .xltx, .xltm."
-                         )
+                         "Supported formats are: .xlsx, .xlsm, .xltx, .xltm.")
         input("\nPress ENTER to exit")
         exit(1)
 
