@@ -167,23 +167,14 @@ def setup_paths():
     """
     global LINKS_PATH, LOG_PATH
     try:
-        with open("../config.json", 'r') as f:
-            cfg_dict = json.load(f)
-    except FileNotFoundError:
-        logging.critical(
-            'file "config.json" does not exist in root directory of program. Cannot load config. Stopping now.'
-        )
-        input("\nPress ENTER to exit")
-        exit(1)
-    try:
-        LINKS_PATH = cfg_dict["links_spreadsheet_path"]
+        LINKS_PATH = CFG_DICT["links_spreadsheet_path"]
         logging.info(f'Path to links spreadsheet: "{LINKS_PATH}"')
     except KeyError:
         logging.critical('"config.json" file does not contain the key "links_spreadsheet_path". Stopping now.')
         input("\nPress ENTER to exit")
         exit(1)
     try:
-        LOG_PATH = cfg_dict["log_file_path"]
+        LOG_PATH = CFG_DICT["log_file_path"]
         logging.info(f'Path to log file: "{LOG_PATH}"')
     except KeyError:
         logging.critical('"config.json" file does not contain the key "log_file_path". Stopping now.')
@@ -289,6 +280,22 @@ def download_all():
             logging.info(f"ffmpeg PID {process.pid} is finished")
 
 
+def load_config():
+    """
+    Loads all data from the config file "config.json".
+    """
+    global CFG_DICT
+    try:
+        with open("../config.json", 'r') as f:
+            CFG_DICT = json.load(f)
+    except FileNotFoundError:
+        logging.critical(
+            'file "config.json" does not exist in root directory of program. Cannot load config. Stopping now.'
+        )
+        input("\nPress ENTER to exit")
+        exit(1)
+
+
 def main():
     """
     Main program routine. Runs when script is executed.
@@ -298,6 +305,7 @@ def main():
     show_version()
     check_env()
     setup_dirs()
+    load_config()
     setup_paths()
     set_current_media_list()
     create_bell_schedule()
@@ -328,6 +336,7 @@ LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
 LOG_PATH = ""  # file path to "bell.log" (where the logger saves to)
 PLAYLIST = []  # bell play order
 PLAY_CYCLE = cycle([])  # circular list version of PLAYLIST
+CFG_DICT = {}  # dictionary of data read from "config.json"
 OPTS = {  # yt-dlp arguments
     'format': 'bestaudio/best',
     'ignoreerrors': True,
