@@ -13,7 +13,11 @@
 
 #### Windows
 
-Run `setup.bat` to install/update all needed Python packages and download the latest `ffmpeg` and `ffplay`.
+* Run `setup.bat` to install/update all needed Python packages and download the latest `ffmpeg` and `ffplay`.
+* Edit `config.json` to supply the file paths to the `links` spreadsheet and where the log file will be stored.
+  * `links` spreadsheet should be 1 column of just URLs. Supported spreadsheet file types are: `.xlsx`, `.xlsm`, `.xltx`, `.xltm`.
+  * Log file format is always `.log`.
+  * **IMPORTANT**: Make sure all `\` in file paths are escaped like this: `\\`.
 
 #### MacOS/Linux
 

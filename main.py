@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 import fnmatch
+import json
 import logging
 from datetime import datetime, timedelta
 from itertools import cycle
-from os import chdir, mkdir, path, getenv, listdir
+from os import chdir, mkdir, listdir
 from os.path import isfile
 from random import shuffle
 from subprocess import Popen, run
@@ -13,6 +14,7 @@ from time import sleep
 
 import coloredlogs
 from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException as openpyxl_InvalidFileException
 from yt_dlp import YoutubeDL
 
 
@@ -164,11 +166,29 @@ def setup_paths():
     Prepare needed file paths.
     """
     global LINKS_PATH, LOG_PATH
-    home = getenv("USERPROFILE")
-    LINKS_PATH = path.join(home, "OneDrive", "OneDrive - ausohio.com", "bell", "links.xlsx")
-    LOG_PATH = path.join(home, "OneDrive", "OneDrive - ausohio.com", "bell", "bell.log")
-    logging.info(f'Path to links spreadsheet: "{LINKS_PATH}"')
-    logging.info(f'Path to log file: "{LOG_PATH}"')
+    try:
+        with open("../config.json", 'r') as f:
+            cfg_dict = json.load(f)
+    except FileNotFoundError:
+        logging.critical(
+            'file "config.json" does not exist in root directory of program. Cannot load config. Stopping now.'
+        )
+        input("\nPress ENTER to exit")
+        exit(1)
+    try:
+        LINKS_PATH = cfg_dict["links_spreadsheet_path"]
+        logging.info(f'Path to links spreadsheet: "{LINKS_PATH}"')
+    except KeyError:
+        logging.critical('"config.json" file does not contain the key "links_spreadsheet_path". Stopping now.')
+        input("\nPress ENTER to exit")
+        exit(1)
+    try:
+        LOG_PATH = cfg_dict["log_file_path"]
+        logging.info(f'Path to log file: "{LOG_PATH}"')
+    except KeyError:
+        logging.critical('"config.json" file does not contain the key "log_file_path". Stopping now.')
+        input("\nPress ENTER to exit")
+        exit(1)
 
 
 def set_current_media_list():
@@ -216,6 +236,12 @@ def read_url_file():
     except PermissionError:
         logging.critical(f'Permission was denied to read spreadsheet file (located at: "{LINKS_PATH}"). '
                          'The file is likely open in Excel. Close Excel and run this script again. Stopping now.')
+        input("\nPress ENTER to exit")
+        exit(1)
+    except openpyxl_InvalidFileException:
+        logging.critical("Cannot not open links spreadsheet, it is an invalid file type. "
+                         "Supported formats are: .xlsx, .xlsm, .xltx, .xltm."
+                         )
         input("\nPress ENTER to exit")
         exit(1)
 
