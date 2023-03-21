@@ -3,6 +3,7 @@
 import fnmatch
 import json
 import logging
+import pickle
 from datetime import datetime, timedelta
 from itertools import cycle
 from os import chdir, mkdir, listdir
@@ -160,7 +161,7 @@ def setup_paths():
     """
     Prepare needed file paths.
     """
-    global LINKS_PATH, LOG_PATH
+    global LINKS_PATH, LOG_PATH, CACHE_PATH
     try:
         LINKS_PATH = CFG_DICT["links_spreadsheet_path"]
         logging.info(f'Path to links spreadsheet: "{LINKS_PATH}"')
@@ -175,6 +176,7 @@ def setup_paths():
         logging.critical('"config.json" file does not contain the key "log_file_path". Stopping now.')
         input("\nPress ENTER to exit")
         exit(1)
+    CACHE_PATH = "../cache.dat"  # this path is static
 
 
 def set_current_media_list():
@@ -201,6 +203,30 @@ def setup_logging():
     logging.info("Script started, logging initiated")
 
 
+def load_prev_urls():
+    """
+    Loads the URL list from the last time this script was ran.
+    This is needed to compare if changes/deletions to the spreadsheet were made.
+    """
+    global PREV_URLS
+    try:
+        with open(CACHE_PATH, "rb") as f:
+            PREV_URLS = pickle.load(f)
+        logging.info("Loaded list of URLs from the previous run")
+    except FileNotFoundError:
+        # continuing without a cache file is ok, but show warning
+        logging.warning("No cache file found, cannot load previous list of URLs")
+
+
+def save_curr_urls():
+    """
+    Saves the current URL list to a cache file.
+    Used in conjunction with "load_prev_urls()"
+    """
+    with open(CACHE_PATH, "wb") as f:
+        pickle.dump(ALL_URLS, f, pickle.HIGHEST_PROTOCOL)
+
+
 def read_url_file():
     """
     Read list of URLs from "links.xlsx" spreadsheet and store them in the global "URLS" variable.
@@ -210,8 +236,9 @@ def read_url_file():
         wb = load_workbook(filename=LINKS_PATH, read_only=True)
         ws = wb["Sheet1"]
         for count, row in enumerate(ws.iter_rows(max_col=1, values_only=True)):
+            link = row[0]
+            ALL_URLS.append(link)
             if count not in CURRENT_MEDIA_LIST:
-                link = row[0]
                 if link is not None:
                     URLS.append(link)
                     NEEDED_MEDIA_LIST.append(count)
@@ -309,7 +336,9 @@ def main():
     set_current_media_list()
     create_bell_schedule()
     show_bell_schedule()
+    load_prev_urls()
     read_url_file()
+    save_curr_urls()
     download_all()
     set_play_order()
     for time in BELL_SCHEDULE:
@@ -331,8 +360,11 @@ CURRENT_MEDIA_LIST = []  # list of numbers representing available media files
 NEEDED_MEDIA_LIST = []  # list of numbers representing the needed media files
 BELL_SCHEDULE = []  # bell schedule list
 URLS = []  # list of URLs to media to be downloaded
+PREV_URLS = []  # list of URLS from the previous run
+ALL_URLS = []  # all URLs that are in the spreadsheet (valid or not!)
 LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
 LOG_PATH = ""  # file path to "bell.log" (where the logger saves to)
+CACHE_PATH = ""  # file path to "cache.dat" (where the previous run's URLs are stored)
 PLAYLIST = []  # bell play order
 PLAY_CYCLE = cycle([])  # circular list version of PLAYLIST
 CFG_DICT = {}  # dictionary of data read from "config.json"
