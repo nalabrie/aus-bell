@@ -244,13 +244,18 @@ def download_all():
             try:
                 extracted_urls.append(ydl.extract_info(link, download=False)["url"])
                 logging.info(f"yt-dlp extracted the audio URL for {link}")
-            except TypeError:
+            except (TypeError, KeyError):
                 # tried to download an invalid link, just skip this one
                 logging.warning(f"yt-dlp skipped an invalid URL: {link}")
                 extracted_urls.append(None)
                 continue
+    download_count = 0
+    for link in extracted_urls:
+        if link is not None:
+            # count all valid links
+            download_count += 1
+    logging.info(f"Downloading {download_count} files with ffmpeg")
     ffmpeg_processes = []
-    logging.info(f"Downloading {len(extracted_urls)} files with ffmpeg")
     for file_num, link in zip(NEEDED_MEDIA_LIST, extracted_urls):
         if link is None:
             # skip invalid link
