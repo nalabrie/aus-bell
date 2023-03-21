@@ -5,8 +5,8 @@ import json
 import logging
 import pickle
 from datetime import datetime, timedelta
-from itertools import cycle
-from os import chdir, mkdir, listdir
+from itertools import cycle, zip_longest
+from os import chdir, mkdir, listdir, remove
 from os.path import isfile
 from random import shuffle
 from subprocess import Popen, run
@@ -181,10 +181,11 @@ def setup_paths():
 
 def set_current_media_list():
     """
-    Fills out the global "CURRENT_MEDIA_LIST" with "bell numbers".
+    Fills out the global "CURRENT_MEDIA_LIST_NUMBERS" with "bell numbers".
+    These numbers are pulled directly from the file names of already downloaded media.
     """
     for file in fnmatch.filter(listdir(), 'bell_*.mkv'):
-        CURRENT_MEDIA_LIST.append(int(file[5]))
+        CURRENT_MEDIA_LIST_NUMBERS.append(int(file[5]))
 
 
 def setup_logging():
@@ -227,10 +228,47 @@ def save_curr_urls():
         pickle.dump(ALL_URLS, f, pickle.HIGHEST_PROTOCOL)
 
 
+def compare_urls():
+    """
+    Compares current list of URLs with the previous run's URL list.
+    This determines which new links need downloaded and which need deleted/overwritten.
+    """
+    for i, (new, old) in enumerate(zip_longest(ALL_URLS, PREV_URLS)):
+        if new == old:
+            # this file is already downloaded, skip it
+            continue
+        else:
+            if new is None:
+                # this link was removed from the spreadsheet and not replaced, queue for deletion
+                TO_BE_DELETED_MEDIA_LIST_NUMBERS.append(i)
+            else:
+                # this file is needed, queue for download
+                NEEDED_MEDIA_LIST_NUMBERS.append(i)
+
+
+def delete_unused_media():
+    """
+    Deletes media files that are no longer listed in the spreadsheet.
+    If a file doesn't exist, it is simply skipped.
+    The "CURRENT_MEDIA_LIST_NUMBERS" variable is refreshed afterward.
+    """
+    # delete all unused media files
+    for i in TO_BE_DELETED_MEDIA_LIST_NUMBERS:
+        file = f"bell_{i}.mkv"
+        try:
+            remove(file)
+            logging.debug(f'deleted file "{file}"')
+        except FileNotFoundError:
+            logging.warning(f'Cannot delete file "{file}" because it does not exist. Skipping deletion.')
+
+    # refresh current media list
+    CURRENT_MEDIA_LIST_NUMBERS.clear()
+    set_current_media_list()
+
+
 def read_url_file():
     """
     Read list of URLs from "links.xlsx" spreadsheet and store them in the global "URLS" variable.
-    Also sets up the global "NEEDED_MEDIA_LIST" list.
     """
     try:
         wb = load_workbook(filename=LINKS_PATH, read_only=True)
@@ -238,10 +276,9 @@ def read_url_file():
         for count, row in enumerate(ws.iter_rows(max_col=1, values_only=True)):
             link = row[0]
             ALL_URLS.append(link)
-            if count not in CURRENT_MEDIA_LIST:
-                if link is not None:
-                    URLS.append(link)
-                    NEEDED_MEDIA_LIST.append(count)
+            if count not in CURRENT_MEDIA_LIST_NUMBERS and link is not None:
+                # link is not already downloaded and not empty
+                URLS.append(link)
     except FileNotFoundError:
         logging.critical(f'"{LINKS_PATH}" does not exist, stopping now')
         input("\nPress ENTER to exit")
@@ -283,7 +320,7 @@ def download_all():
             download_count += 1
     logging.info(f"Downloading {download_count} files with ffmpeg")
     ffmpeg_processes = []
-    for file_num, link in zip(NEEDED_MEDIA_LIST, extracted_urls):
+    for file_num, link in zip(NEEDED_MEDIA_LIST_NUMBERS, extracted_urls):
         if link is None:
             # skip invalid link
             continue
@@ -339,6 +376,8 @@ def main():
     load_prev_urls()
     read_url_file()
     save_curr_urls()
+    compare_urls()
+    delete_unused_media()
     download_all()
     set_play_order()
     for time in BELL_SCHEDULE:
@@ -356,8 +395,9 @@ def main():
 
 # all global variables needed for "main()"
 MEDIA_LENGTH = "03:00"  # max length to trim downloaded media in MM:SS format (string)
-CURRENT_MEDIA_LIST = []  # list of numbers representing available media files
-NEEDED_MEDIA_LIST = []  # list of numbers representing the needed media files
+CURRENT_MEDIA_LIST_NUMBERS = []  # list of numbers representing available media files
+NEEDED_MEDIA_LIST_NUMBERS = []  # list of numbers representing the needed media files
+TO_BE_DELETED_MEDIA_LIST_NUMBERS = []  # list of numbers representing which media files need deleted
 BELL_SCHEDULE = []  # bell schedule list
 URLS = []  # list of URLs to media to be downloaded
 PREV_URLS = []  # list of URLS from the previous run
