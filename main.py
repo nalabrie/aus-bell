@@ -185,7 +185,12 @@ def set_current_media_list():
     These numbers are pulled directly from the file names of already downloaded media.
     """
     for file in fnmatch.filter(listdir(), 'bell_*.mkv'):
-        CURRENT_MEDIA_LIST_NUMBERS.append(int(file[5]))
+        num_string = ""
+        for char in file:
+            if char.isdigit():
+                num_string += char
+        CURRENT_MEDIA_LIST_NUMBERS.append(int(num_string))
+    CURRENT_MEDIA_LIST_NUMBERS.sort()
 
 
 def setup_logging():
