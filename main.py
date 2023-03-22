@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from itertools import cycle, zip_longest
 from os import chdir, mkdir, listdir, remove
 from os.path import isfile
+from pathlib import Path
 from random import shuffle
 from subprocess import Popen, run
 from sys import exit
@@ -91,7 +92,7 @@ def play_media(file_path):
     :param file_path: Path to the audio file
     """
     try:
-        run(f"../ffplay -nodisp -autoexit -loglevel fatal {file_path}")
+        run(f"{FFPLAY_PATH} -nodisp -autoexit -loglevel fatal {file_path}")
     except KeyboardInterrupt:
         logging.warning(f"User requested to stop the bell early at {datetime.now().strftime('%I:%M %p')}")
 
@@ -157,11 +158,12 @@ def setup_dirs():
     chdir("media")
 
 
-def setup_paths():
+def setup_dynamic_paths():
     """
     Prepare needed file paths.
+    These paths can change between systems.
     """
-    global LINKS_PATH, LOG_PATH, CACHE_PATH
+    global LINKS_PATH, LOG_PATH
     try:
         LINKS_PATH = CFG_DICT["links_spreadsheet_path"]
         logging.info(f'Path to links spreadsheet: "{LINKS_PATH}"')
@@ -176,7 +178,18 @@ def setup_paths():
         logging.critical('"config.json" file does not contain the key "log_file_path". Stopping now.')
         input("\nPress ENTER to exit")
         exit(1)
-    CACHE_PATH = "../cache.dat"  # this path is static
+
+
+def setup_static_paths():
+    """
+    Prepare needed file paths.
+    These paths are the same on every system.
+    """
+    global CACHE_PATH, FFMPEG_PATH, FFPLAY_PATH, CFG_PATH
+    CACHE_PATH = str(Path("../cache.dat").resolve())
+    FFMPEG_PATH = str(Path("../ffmpeg").resolve())
+    FFPLAY_PATH = str(Path("../ffplay").resolve())
+    CFG_PATH = str(Path("../config.json").resolve())
 
 
 def set_current_media_list():
@@ -309,16 +322,19 @@ def download_all():
     """
     with YoutubeDL(OPTS) as ydl:
         extracted_urls = []
+        out_file_names = []
         logging.info(f"extracting audio URLs from {len(NEEDED_MEDIA_LIST_NUMBERS)} links with yt-dlp")
-        for i in NEEDED_MEDIA_LIST_NUMBERS:
+        for file_num in NEEDED_MEDIA_LIST_NUMBERS:
             # extract the audio track URL from each link
             try:
-                extracted_urls.append(ydl.extract_info(ALL_URLS[i], download=False)["url"])
-                logging.info(f"yt-dlp extracted the audio URL for {ALL_URLS[i]}")
+                extracted_urls.append(ydl.extract_info(ALL_URLS[file_num], download=False)["url"])
+                out_file_names.append(f"bell_{file_num}.mkv")
+                logging.info(f"yt-dlp extracted the audio URL for {ALL_URLS[file_num]}")
             except (TypeError, KeyError):
                 # tried to download an invalid link, just skip this one
-                logging.warning(f"yt-dlp skipped an invalid URL: {ALL_URLS[i]}")
+                logging.warning(f"yt-dlp skipped an invalid URL: {ALL_URLS[file_num]}")
                 extracted_urls.append(None)
+                out_file_names.append(None)
                 continue
     download_count = 0
     for link in extracted_urls:
@@ -327,7 +343,7 @@ def download_all():
             download_count += 1
     logging.info(f"Downloading {download_count} files with ffmpeg")
     ffmpeg_processes = []
-    for file_num, link in zip(NEEDED_MEDIA_LIST_NUMBERS, extracted_urls):
+    for file_num, link, file_name in zip(NEEDED_MEDIA_LIST_NUMBERS, extracted_urls, out_file_names):
         if link is None:
             # skip invalid link
             continue
@@ -338,8 +354,7 @@ def download_all():
         #   4. wait to return until all ffmpeg instances are finished
         ffmpeg_processes.append(
             Popen(
-                f"../ffmpeg -loglevel fatal -n -ss 00:00:00 -to 00:{MEDIA_LENGTH} -i {link} "
-                f"-vn -c:a copy bell_{file_num}.mkv"
+                f"{FFMPEG_PATH} -loglevel fatal -n -ss 00:00:00 -to 00:{MEDIA_LENGTH} -i {link} -vn -c:a copy {file_name}"
             )
         )
     for process in ffmpeg_processes:
@@ -348,6 +363,12 @@ def download_all():
             sleep(0.5)
         else:
             logging.info(f"ffmpeg PID {process.pid} is finished")
+    all_new_file_names_string = ""
+    for file_name in out_file_names:
+        # get all new files into a quoted string with a space between them
+        all_new_file_names_string += f'"{file_name}" '
+    # normalize all new files
+    # run(f"set FFMPEG_PATH={FFMPEG_PATH} && ffmpeg-normalize {all_new_file_names_string}")
 
 
 def load_config():
@@ -356,7 +377,7 @@ def load_config():
     """
     global CFG_DICT
     try:
-        with open("../config.json", 'r') as f:
+        with open(CFG_PATH, 'r') as f:
             CFG_DICT = json.load(f)
     except FileNotFoundError:
         logging.critical(
@@ -375,8 +396,9 @@ def main():
     show_version()
     check_env()
     setup_dirs()
+    setup_static_paths()
     load_config()
-    setup_paths()
+    setup_dynamic_paths()
     set_current_media_list()
     create_bell_schedule()
     show_bell_schedule()
@@ -411,9 +433,12 @@ ALL_URLS = []  # all URLs that are in the spreadsheet (valid or not!)
 LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
 LOG_PATH = ""  # file path to "bell.log" (where the logger saves to)
 CACHE_PATH = ""  # file path to "cache.dat" (where the previous run's URLs are stored)
+FFMPEG_PATH = ""  # path to ffmpeg executable
+FFPLAY_PATH = ""  # path to ffplay executable
 PLAYLIST = []  # bell play order
 PLAY_CYCLE = cycle([])  # circular list version of PLAYLIST
-CFG_DICT = {}  # dictionary of data read from "config.json"
+CFG_DICT = {}  # dictionary of data read from "config.json"FFPLAY_PATH = ""  # path to ffplay executable
+CFG_PATH = ""  # path to the config file (config.json)
 OPTS = {  # yt-dlp arguments
     'format': 'bestaudio/best',
     'ignoreerrors': True,
