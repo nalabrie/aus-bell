@@ -237,6 +237,7 @@ def compare_urls():
     """
     Compares current list of URLs with the previous run's URL list.
     This determines which new links need downloaded and which need deleted/overwritten.
+    IMPORTANT: make sure to call "delete_unused_media()" right after this function.
     """
     for i, (new, old) in enumerate(zip_longest(ALL_URLS, PREV_URLS)):
         if new == old:
@@ -249,6 +250,10 @@ def compare_urls():
             else:
                 # this file is needed, queue for download
                 NEEDED_MEDIA_LIST_NUMBERS.append(i)
+                if i in CURRENT_MEDIA_LIST_NUMBERS:
+                    # new link overwrites old media file, queue old file for deletion
+                    # DELETE MUST OCCUR RIGHT AFTER THIS FUNCTION (because of this situation)
+                    TO_BE_DELETED_MEDIA_LIST_NUMBERS.append(i)
 
 
 def delete_unused_media():
@@ -273,7 +278,7 @@ def delete_unused_media():
 
 def read_url_file():
     """
-    Read list of URLs from "links.xlsx" spreadsheet and store them in the global "URLS" variable.
+    Read list of URLs from "links.xlsx" spreadsheet and store them in the global "ALL_URLS" variable.
     """
     try:
         wb = load_workbook(filename=LINKS_PATH, read_only=True)
@@ -281,9 +286,6 @@ def read_url_file():
         for count, row in enumerate(ws.iter_rows(max_col=1, values_only=True)):
             link = row[0]
             ALL_URLS.append(link)
-            if count not in CURRENT_MEDIA_LIST_NUMBERS and link is not None:
-                # link is not already downloaded and not empty
-                URLS.append(link)
     except FileNotFoundError:
         logging.critical(f'"{LINKS_PATH}" does not exist, stopping now')
         input("\nPress ENTER to exit")
@@ -307,15 +309,15 @@ def download_all():
     """
     with YoutubeDL(OPTS) as ydl:
         extracted_urls = []
-        logging.info(f"extracting audio URLs from {len(URLS)} links with yt-dlp")
-        for link in URLS:
+        logging.info(f"extracting audio URLs from {len(NEEDED_MEDIA_LIST_NUMBERS)} links with yt-dlp")
+        for i in NEEDED_MEDIA_LIST_NUMBERS:
             # extract the audio track URL from each link
             try:
-                extracted_urls.append(ydl.extract_info(link, download=False)["url"])
-                logging.info(f"yt-dlp extracted the audio URL for {link}")
+                extracted_urls.append(ydl.extract_info(ALL_URLS[i], download=False)["url"])
+                logging.info(f"yt-dlp extracted the audio URL for {ALL_URLS[i]}")
             except (TypeError, KeyError):
                 # tried to download an invalid link, just skip this one
-                logging.warning(f"yt-dlp skipped an invalid URL: {link}")
+                logging.warning(f"yt-dlp skipped an invalid URL: {ALL_URLS[i]}")
                 extracted_urls.append(None)
                 continue
     download_count = 0
@@ -404,7 +406,6 @@ CURRENT_MEDIA_LIST_NUMBERS = []  # list of numbers representing available media 
 NEEDED_MEDIA_LIST_NUMBERS = []  # list of numbers representing the needed media files
 TO_BE_DELETED_MEDIA_LIST_NUMBERS = []  # list of numbers representing which media files need deleted
 BELL_SCHEDULE = []  # bell schedule list
-URLS = []  # list of URLs to media to be downloaded
 PREV_URLS = []  # list of URLS from the previous run
 ALL_URLS = []  # all URLs that are in the spreadsheet (valid or not!)
 LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
