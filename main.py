@@ -320,6 +320,7 @@ def download_all():
     Downloads all media from URLs in list with yt-dlp,
     converts first "MEDIA_LENGTH" minute(s) to a mkv file (copies original codec)
     """
+    # ---- extract all audio links from all valid links ----
     with YoutubeDL(OPTS) as ydl:
         extracted_urls = []
         out_file_names = []
@@ -336,6 +337,8 @@ def download_all():
                 extracted_urls.append(None)
                 out_file_names.append(None)
                 continue
+
+    # ---- download all valid audio files with ffmpeg ----
     download_count = 0
     for link in extracted_urls:
         if link is not None:
@@ -363,12 +366,18 @@ def download_all():
             sleep(0.5)
         else:
             logging.info(f"ffmpeg PID {process.pid} is finished")
+
+    # ---- normalize volume for all new audio files ----
     all_new_file_names_string = ""
     for file_name in out_file_names:
-        # get all new files into a quoted string with a space between them
-        all_new_file_names_string += f'"{file_name}" '
-    # normalize all new files
-    # run(f"set FFMPEG_PATH={FFMPEG_PATH} && ffmpeg-normalize {all_new_file_names_string}")
+        if file_name is not None:
+            # get all new files into a quoted string with a space between them
+            all_new_file_names_string += f'"{file_name}" '
+    if all_new_file_names_string != "":
+        # string isn't empty, so new files were downloaded
+        # normalize all new files
+        # TODO: check why "ffmpeg-normalize" cannot find ffmpeg even though path is correct
+        run(f'cmd /V /C "set FFMPEG_PATH="{FFMPEG_PATH}" && ffmpeg-normalize -q {all_new_file_names_string}"')
 
 
 def load_config():
