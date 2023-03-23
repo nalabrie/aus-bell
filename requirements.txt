@@ -1,4 +1,3 @@
 yt-dlp
 openpyxl
 coloredlogs
-ffmpeg-normalize
