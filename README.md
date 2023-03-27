@@ -14,14 +14,19 @@
 #### Windows
 
 * Run `setup.bat` to install/update all needed Python packages and download the latest `ffmpeg` and `ffplay`.
-* Edit `config.json` to supply the file paths to the `links` spreadsheet and where the log file will be stored.
+* Edit `config.yaml` to supply the file paths to the `links` spreadsheet and where the log file will be stored.
   * `links` spreadsheet should be 1 column of just URLs. Supported spreadsheet file types are: `.xlsx`, `.xlsm`, `.xltx`, `.xltm`.
   * Log file format is always `.log`.
-  * **IMPORTANT**: Make sure all `\` in file paths are escaped like this: `\\`.
-* Edit `config.json` to supply the bell schedule.
-  * The `bell_schedule` array stores a dictionary of times in the following format: `{ "h": 13, "m": 42 }`
-  * Any amount of times can be added.
-  * **IMPORTANT**: Make sure `h` is in 24h format.
+* Edit `config.yaml` to supply the bell schedule.
+  * The `bell_schedule` array stores a dictionary of times in the following format:
+
+  ```yaml
+    - hour: 13
+      minute: 42
+  ```
+
+* Any amount of times can be added.
+* **IMPORTANT**: Make sure `hour` is in 24h format.
 
 #### MacOS/Linux
 
