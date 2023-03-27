@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 
 import fnmatch
-import json
 import logging
 import pickle
 from datetime import datetime, timedelta
 from itertools import cycle, zip_longest
 from os import chdir, mkdir, listdir, remove
-from os.path import isfile
 from pathlib import Path
+from platform import system
 from random import shuffle
 from subprocess import Popen, run
 from sys import exit
 from time import sleep
 
 import coloredlogs
+import yaml
 from openpyxl import load_workbook
 from openpyxl.utils.exceptions import InvalidFileException as openpyxl_InvalidFileException
 from yt_dlp import YoutubeDL
@@ -39,18 +39,6 @@ class DummyLogger:
 
 # ---- FUNCTIONS ----
 
-def check_env():
-    """
-    Checks if all needed external dependencies are available. Exits script if any are missing.
-    """
-    # checks for ffmpeg and ffplay
-    if not isfile("ffmpeg.exe") or not isfile("ffplay.exe"):
-        logging.critical('Missing "ffmpeg" or "ffplay" (or both). '
-                         'If you are using Windows, run "setup.bat" to download both.')
-        input("\nPress ENTER to exit")
-        exit(1)
-
-
 def show_intro():
     """
     Displays the intro message to the terminal at the start of the script.
@@ -67,23 +55,23 @@ Close the terminal window to stop this script at any time.
 
 def show_version():
     """
-    Outputs the script's version to the logger.
+    Outputs the script's version to the LOGGER.
     """
     try:
         with open("VERSION", mode='r') as f:
-            logging.info(f"aus-bell version {f.read(7)}")
+            LOGGER.info(f"aus-bell version {f.read(7)}")
     except FileNotFoundError:
-        logging.error('"VERSION" file is missing, continuing anyway')
+        LOGGER.error('"VERSION" file is missing, continuing anyway')
 
 
 def show_bell_schedule():
     """
-    Outputs the bell schedule to the logger.
+    Outputs the bell schedule to the LOGGER.
     """
-    logging.debug("Bell schedule:")
-    logging.debug("--------------")
+    LOGGER.debug("Bell schedule:")
+    LOGGER.debug("--------------")
     for time in BELL_SCHEDULE:
-        logging.debug(time.strftime('%I:%M %p'))
+        LOGGER.debug(time.strftime('%I:%M %p'))
 
 
 def play_media(file_path):
@@ -94,7 +82,7 @@ def play_media(file_path):
     try:
         run(f"{FFPLAY_PATH} -nodisp -autoexit -loglevel fatal {file_path}")
     except KeyboardInterrupt:
-        logging.warning(f"User requested to stop the bell early at {datetime.now().strftime('%I:%M %p')}")
+        LOGGER.warning(f"User requested to stop the bell early at {datetime.now().strftime('%I:%M %p')}")
 
 
 def set_play_order():
@@ -107,7 +95,7 @@ def set_play_order():
     shuffle(PLAYLIST)
     global PLAY_CYCLE
     PLAY_CYCLE = cycle(PLAYLIST)
-    logging.info(f"playlist with {len(PLAYLIST)} songs has been shuffled")
+    LOGGER.info(f"playlist with {len(PLAYLIST)} songs has been shuffled")
 
 
 def ring_bell():
@@ -115,7 +103,7 @@ def ring_bell():
     Rings the next bell in the playlist.
     """
     song = next(PLAY_CYCLE)
-    logging.info(f"playing file: {song}")
+    LOGGER.info(f"playing file: {song}")
     play_media(song)
 
 
@@ -128,11 +116,11 @@ def sleep_until(target: datetime):
     delta = target - now
 
     if delta > timedelta(0):
-        logging.info(f"Waiting until next bell at {target.strftime('%I:%M %p')}")
+        LOGGER.info(f"Waiting until next bell at {target.strftime('%I:%M %p')}")
         try:
             sleep(delta.total_seconds())
         except KeyboardInterrupt:
-            logging.warning(f"User requested to play the bell early at {datetime.now().strftime('%I:%M %p')}")
+            LOGGER.warning(f"User requested to play the bell early at {datetime.now().strftime('%I:%M %p')}")
     else:
         raise ValueError('"sleep_until()" cannot sleep a negative amount of time.')
 
@@ -143,7 +131,7 @@ def create_bell_schedule():
     """
     today = datetime.now().replace(second=0, microsecond=0)
     for time in CFG_DICT["bell_schedule"]:
-        BELL_SCHEDULE.append(today.replace(hour=time['h'], minute=time['m']))
+        BELL_SCHEDULE.append(today.replace(hour=time["hour"], minute=time["minute"]))
 
 
 def setup_dirs():
@@ -152,7 +140,7 @@ def setup_dirs():
     """
     try:
         mkdir("media")
-        logging.info('"media" directory was created')
+        LOGGER.info('"media" directory was created')
     except FileExistsError:
         pass
     chdir("media")
@@ -166,16 +154,14 @@ def setup_dynamic_paths():
     global LINKS_PATH, LOG_PATH
     try:
         LINKS_PATH = CFG_DICT["links_spreadsheet_path"]
-        logging.info(f'Path to links spreadsheet: "{LINKS_PATH}"')
     except KeyError:
-        logging.critical('"config.json" file does not contain the key "links_spreadsheet_path". Stopping now.')
+        LOGGER.critical('"config.yaml" file does not contain the key "links_spreadsheet_path". Stopping now.')
         input("\nPress ENTER to exit")
         exit(1)
     try:
         LOG_PATH = CFG_DICT["log_file_path"]
-        logging.info(f'Path to log file: "{LOG_PATH}"')
     except KeyError:
-        logging.critical('"config.json" file does not contain the key "log_file_path". Stopping now.')
+        LOGGER.critical('"config.yaml" file does not contain the key "log_file_path". Stopping now.')
         input("\nPress ENTER to exit")
         exit(1)
 
@@ -186,10 +172,26 @@ def setup_static_paths():
     These paths are the same on every system.
     """
     global CACHE_PATH, FFMPEG_PATH, FFPLAY_PATH, CFG_PATH
-    CACHE_PATH = str(Path("../cache.dat").resolve())
-    FFMPEG_PATH = str(Path("../ffmpeg").resolve())
-    FFPLAY_PATH = str(Path("../ffplay").resolve())
-    CFG_PATH = str(Path("../config.json").resolve())
+
+    CACHE_PATH = str(Path("cache.dat").resolve())  # it is ok if this does not exist
+    if system() == "Windows":
+        try:
+            FFMPEG_PATH = str(Path("ffmpeg.exe").resolve(strict=True))
+            FFPLAY_PATH = str(Path("ffplay.exe").resolve(strict=True))
+        except FileNotFoundError:
+            LOGGER.critical('Missing ffmpeg and/or ffplay. Run "setup.bat" to download both. Stopping now.')
+            input("\nPress ENTER to exit")
+            exit(1)
+    else:
+        # this situation should never occur because only Windows is supported (for now)
+        try:
+            FFMPEG_PATH = str(Path("ffmpeg").resolve(strict=True))
+            FFPLAY_PATH = str(Path("ffplay").resolve(strict=True))
+        except FileNotFoundError:
+            LOGGER.critical("placeholder")
+            input("\nPress ENTER to exit")
+            exit(1)
+    CFG_PATH = str(Path("config.yaml").resolve(strict=True))
 
 
 def set_current_media_list():
@@ -208,18 +210,30 @@ def set_current_media_list():
 
 def setup_logging():
     """
-    Sets up the config for the logger.
+    Sets up the config for the LOGGER.
     """
-    # initiate file logger
-    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s',
-                        level=logging.DEBUG,
-                        filename=LOG_PATH,
-                        filemode='w'
-                        )
+    log_format = "%(asctime)s %(name)s %(levelname)s %(message)s"
 
-    # initiate terminal logger (in color)
-    coloredlogs.install(level="DEBUG")
-    logging.info("Script started, logging initiated")
+    # create a "FileHandler" object
+    fh = logging.FileHandler(LOG_PATH, mode='w')
+    fh.setLevel(logging.DEBUG)
+
+    # create a "ColoredFormatter" to use as formatter for the FileHandler
+    formatter = coloredlogs.ColoredFormatter(log_format)
+    fh.setFormatter(formatter)
+    LOGGER.addHandler(fh)
+
+    # install the "coloredlogs" module
+    coloredlogs.install(level="DEBUG", logger=LOGGER, fmt=log_format)
+
+    # show all paths
+    LOGGER.info("Script started, logging initiated")
+    LOGGER.info(f'Path to links spreadsheet: "{LINKS_PATH}"')
+    LOGGER.info(f'Path to log file: "{LOG_PATH}"')
+    LOGGER.info(f'Path to cache file: "{CACHE_PATH}"')
+    LOGGER.info(f'Path to config file: "{CFG_PATH}"')
+    LOGGER.info(f'Path to ffmpeg executable: "{FFMPEG_PATH}"')
+    LOGGER.info(f'Path to ffplay executable: "{FFPLAY_PATH}"')
 
 
 def load_prev_urls():
@@ -231,10 +245,10 @@ def load_prev_urls():
     try:
         with open(CACHE_PATH, "rb") as f:
             PREV_URLS = pickle.load(f)
-        logging.info("Loaded list of URLs from the previous run")
+        LOGGER.info("Loaded list of URLs from the previous run")
     except FileNotFoundError:
         # continuing without a cache file is ok, but show warning
-        logging.warning("No cache file found, cannot load previous list of URLs")
+        LOGGER.warning("No cache file found, cannot load previous list of URLs")
 
 
 def save_curr_urls():
@@ -280,9 +294,9 @@ def delete_unused_media():
         file = f"bell_{i}.mkv"
         try:
             remove(file)
-            logging.debug(f'deleted file "{file}"')
+            LOGGER.debug(f'deleted file "{file}"')
         except FileNotFoundError:
-            logging.warning(f'Cannot delete file "{file}" because it does not exist. Skipping deletion.')
+            LOGGER.warning(f'Cannot delete file "{file}" because it does not exist. Skipping deletion.')
 
     # refresh current media list
     CURRENT_MEDIA_LIST_NUMBERS.clear()
@@ -300,17 +314,17 @@ def read_url_file():
             link = row[0]
             ALL_URLS.append(link)
     except FileNotFoundError:
-        logging.critical(f'"{LINKS_PATH}" does not exist, stopping now')
+        LOGGER.critical(f'"{LINKS_PATH}" does not exist, stopping now')
         input("\nPress ENTER to exit")
         exit(1)
     except PermissionError:
-        logging.critical(f'Permission was denied to read spreadsheet file (located at: "{LINKS_PATH}"). '
-                         'The file is likely open in Excel. Close Excel and run this script again. Stopping now.')
+        LOGGER.critical(f'Permission was denied to read spreadsheet file (located at: "{LINKS_PATH}"). '
+                        'The file is likely open in Excel. Close Excel and run this script again. Stopping now.')
         input("\nPress ENTER to exit")
         exit(1)
     except openpyxl_InvalidFileException:
-        logging.critical("Cannot not open links spreadsheet, it is an invalid file type. "
-                         "Supported formats are: .xlsx, .xlsm, .xltx, .xltm.")
+        LOGGER.critical("Cannot not open links spreadsheet, it is an invalid file type. "
+                        "Supported formats are: .xlsx, .xlsm, .xltx, .xltm. Stopping now.")
         input("\nPress ENTER to exit")
         exit(1)
 
@@ -324,16 +338,16 @@ def download_all():
     with YoutubeDL(OPTS) as ydl:
         extracted_urls = []
         out_file_names = []
-        logging.info(f"extracting audio URLs from {len(NEEDED_MEDIA_LIST_NUMBERS)} links with yt-dlp")
+        LOGGER.info(f"extracting audio URLs from {len(NEEDED_MEDIA_LIST_NUMBERS)} links with yt-dlp")
         for file_num in NEEDED_MEDIA_LIST_NUMBERS:
             # extract the audio track URL from each link
             try:
                 extracted_urls.append(ydl.extract_info(ALL_URLS[file_num], download=False)["url"])
                 out_file_names.append(f"bell_{file_num}.mkv")
-                logging.info(f"yt-dlp extracted the audio URL for {ALL_URLS[file_num]}")
+                LOGGER.info(f"yt-dlp extracted the audio URL for {ALL_URLS[file_num]}")
             except (TypeError, KeyError):
                 # tried to download an invalid link, just skip this one
-                logging.warning(f"yt-dlp skipped an invalid URL: {ALL_URLS[file_num]}")
+                LOGGER.warning(f"yt-dlp skipped an invalid URL: {ALL_URLS[file_num]}")
                 extracted_urls.append(None)
                 out_file_names.append(None)
                 continue
@@ -344,7 +358,7 @@ def download_all():
         if link is not None:
             # count all valid links
             download_count += 1
-    logging.info(f"Downloading {download_count} files with ffmpeg")
+    LOGGER.info(f"Downloading {download_count} files with ffmpeg")
     ffmpeg_processes = []
     for file_num, link, file_name in zip(NEEDED_MEDIA_LIST_NUMBERS, extracted_urls, out_file_names):
         if link is None:
@@ -365,20 +379,20 @@ def download_all():
         while process.poll() is None:
             sleep(0.5)
         else:
-            logging.info(f"ffmpeg PID {process.pid} is finished")
+            LOGGER.info(f"ffmpeg PID {process.pid} is finished")
 
 
 def load_config():
     """
-    Loads all data from the config file "config.json".
+    Loads all data from the config file "config.yaml".
     """
     global CFG_DICT
     try:
         with open(CFG_PATH, 'r') as f:
-            CFG_DICT = json.load(f)
+            CFG_DICT = yaml.safe_load(f)
     except FileNotFoundError:
-        logging.critical(
-            'file "config.json" does not exist in root directory of program. Cannot load config. Stopping now.'
+        LOGGER.critical(
+            'file "config.yaml" does not exist in root directory of program. Cannot load config. Stopping now.'
         )
         input("\nPress ENTER to exit")
         exit(1)
@@ -388,14 +402,13 @@ def main():
     """
     Main program routine. Runs when script is executed.
     """
-    show_intro()
-    setup_logging()
-    show_version()
-    check_env()
-    setup_dirs()
     setup_static_paths()
     load_config()
     setup_dynamic_paths()
+    show_intro()
+    setup_logging()
+    show_version()
+    setup_dirs()
     set_current_media_list()
     create_bell_schedule()
     show_bell_schedule()
@@ -413,7 +426,7 @@ def main():
             # bell has already happened, so skip it
             continue
         ring_bell()
-    logging.debug("Script finished cleanly")
+    LOGGER.debug("Script finished cleanly")
     input("\nPress ENTER to exit")
 
 
@@ -429,13 +442,14 @@ PREV_URLS = []  # list of URLS from the previous run
 ALL_URLS = []  # all URLs that are in the spreadsheet (valid or not!)
 LINKS_PATH = None  # file path to "links.xlsx" (where media URLs are stored)
 LOG_PATH = ""  # file path to "bell.log" (where the logger saves to)
+LOGGER = logging.getLogger("aus-bell")  # initiate logger
 CACHE_PATH = ""  # file path to "cache.dat" (where the previous run's URLs are stored)
 FFMPEG_PATH = ""  # path to ffmpeg executable
 FFPLAY_PATH = ""  # path to ffplay executable
 PLAYLIST = []  # bell play order
-PLAY_CYCLE = cycle([])  # circular list version of PLAYLIST
-CFG_DICT = {}  # dictionary of data read from "config.json"FFPLAY_PATH = ""  # path to ffplay executable
-CFG_PATH = ""  # path to the config file (config.json)
+PLAY_CYCLE = cycle([])  # circular list version of "PLAYLIST"
+CFG_DICT = {}  # dictionary of data read from "config.yaml"
+CFG_PATH = ""  # path to the config file (config.yaml)
 OPTS = {  # yt-dlp arguments
     'format': 'bestaudio/best',
     'ignoreerrors': True,
