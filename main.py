@@ -53,6 +53,24 @@ Close the terminal window to stop this script at any time.
     print(message)
 
 
+def quit_with_error():
+    """
+    Exit script with return code 1.
+    Waits for user to press ENTER before quitting.
+    """
+    input("\nPress ENTER to exit")
+    exit(1)
+
+
+def quit_with_success():
+    """
+    Exit script with return code 0.
+    Waits for user to press ENTER before quitting.
+    """
+    input("\nPress ENTER to exit")
+    exit(0)
+
+
 def show_version():
     """
     Outputs the script's version to the LOGGER.
@@ -156,14 +174,12 @@ def setup_dynamic_paths():
         LINKS_PATH = CFG_DICT["links_spreadsheet_path"]
     except KeyError:
         LOGGER.critical('"config.yaml" file does not contain the key "links_spreadsheet_path". Stopping now.')
-        input("\nPress ENTER to exit")
-        exit(1)
+        quit_with_error()
     try:
         LOG_PATH = CFG_DICT["log_file_path"]
     except KeyError:
         LOGGER.critical('"config.yaml" file does not contain the key "log_file_path". Stopping now.')
-        input("\nPress ENTER to exit")
-        exit(1)
+        quit_with_error()
 
 
 def setup_static_paths():
@@ -180,8 +196,7 @@ def setup_static_paths():
             FFPLAY_PATH = str(Path("ffplay.exe").resolve(strict=True))
         except FileNotFoundError:
             LOGGER.critical('Missing ffmpeg and/or ffplay. Run "setup.bat" to download both. Stopping now.')
-            input("\nPress ENTER to exit")
-            exit(1)
+            quit_with_error()
     else:
         # this situation should never occur because only Windows is supported (for now)
         try:
@@ -189,9 +204,12 @@ def setup_static_paths():
             FFPLAY_PATH = str(Path("ffplay").resolve(strict=True))
         except FileNotFoundError:
             LOGGER.critical("placeholder")
-            input("\nPress ENTER to exit")
-            exit(1)
-    CFG_PATH = str(Path("config.yaml").resolve(strict=True))
+            quit_with_error()
+    try:
+        CFG_PATH = str(Path("config.yaml").resolve(strict=True))
+    except FileNotFoundError:
+        LOGGER.critical('Missing "config.yaml". Cannot load configuration. Stopping now.')
+        quit_with_error()
 
 
 def set_current_media_list():
@@ -243,7 +261,7 @@ def load_prev_urls():
     """
     global PREV_URLS
     try:
-        with open(CACHE_PATH, "rb") as f:
+        with open(CACHE_PATH, mode="rb") as f:
             PREV_URLS = pickle.load(f)
         LOGGER.info("Loaded list of URLs from the previous run")
     except FileNotFoundError:
@@ -256,7 +274,7 @@ def save_curr_urls():
     Saves the current URL list to a cache file.
     Used in conjunction with "load_prev_urls()"
     """
-    with open(CACHE_PATH, "wb") as f:
+    with open(CACHE_PATH, mode="wb") as f:
         pickle.dump(ALL_URLS, f, pickle.HIGHEST_PROTOCOL)
 
 
@@ -315,18 +333,15 @@ def read_url_file():
             ALL_URLS.append(link)
     except FileNotFoundError:
         LOGGER.critical(f'"{LINKS_PATH}" does not exist, stopping now')
-        input("\nPress ENTER to exit")
-        exit(1)
+        quit_with_error()
     except PermissionError:
         LOGGER.critical(f'Permission was denied to read spreadsheet file (located at: "{LINKS_PATH}"). '
                         'The file is likely open in Excel. Close Excel and run this script again. Stopping now.')
-        input("\nPress ENTER to exit")
-        exit(1)
+        quit_with_error()
     except openpyxl_InvalidFileException:
         LOGGER.critical("Cannot not open links spreadsheet, it is an invalid file type. "
                         "Supported formats are: .xlsx, .xlsm, .xltx, .xltm. Stopping now.")
-        input("\nPress ENTER to exit")
-        exit(1)
+        quit_with_error()
 
 
 def download_all():
@@ -388,14 +403,13 @@ def load_config():
     """
     global CFG_DICT
     try:
-        with open(CFG_PATH, 'r') as f:
+        with open(CFG_PATH, mode='r') as f:
             CFG_DICT = yaml.safe_load(f)
     except FileNotFoundError:
         LOGGER.critical(
             'file "config.yaml" does not exist in root directory of program. Cannot load config. Stopping now.'
         )
-        input("\nPress ENTER to exit")
-        exit(1)
+        quit_with_error()
 
 
 def main():
@@ -427,7 +441,7 @@ def main():
             continue
         ring_bell()
     LOGGER.debug("Script finished cleanly")
-    input("\nPress ENTER to exit")
+    quit_with_success()
 
 
 # ---- GLOBALS ----
