@@ -18,7 +18,7 @@
   * `links` spreadsheet should be 1 column of just URLs. Supported spreadsheet file types are: `.xlsx`, `.xlsm`, `.xltx`, `.xltm`.
   * Log file format is always `.log`.
 * Edit `config.yaml` to supply the bell schedule.
-  * The `bell_schedule` array stores a dictionary of times in the following format:
+  * The `bell_schedule` stores a list of time strings in the following format:
 
   ```yaml
   bell_schedule:
