@@ -284,6 +284,8 @@ def compare_urls():
     This determines which new links need downloaded and which need deleted/overwritten.
     IMPORTANT: make sure to call "delete_unused_media()" right after this function.
     """
+
+    # iterate over the current and previous list of links
     for i, (new, old) in enumerate(zip_longest(ALL_URLS, PREV_URLS)):
         if new == old:
             # this file is already downloaded, skip it
@@ -299,6 +301,13 @@ def compare_urls():
                     # new link overwrites old media file, queue old file for deletion
                     # DELETE MUST OCCUR RIGHT AFTER THIS FUNCTION (because of this situation)
                     TO_BE_DELETED_MEDIA_LIST_NUMBERS.append(i)
+
+    # check if a file was manually deleted by a user between runs
+    if len(CURRENT_MEDIA_LIST_NUMBERS) != len(PREV_URLS):
+        for i, _ in enumerate(CURRENT_MEDIA_LIST_NUMBERS):
+            if i not in CURRENT_MEDIA_LIST_NUMBERS and i not in NEEDED_MEDIA_LIST_NUMBERS:
+                # file was deleted, queue for download
+                NEEDED_MEDIA_LIST_NUMBERS.append(i)
 
 
 def delete_unused_media():
