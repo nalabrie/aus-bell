@@ -149,7 +149,14 @@ def create_bell_schedule():
     """
     today = datetime.now().replace(second=0, microsecond=0)
     for time in CFG_DICT["bell_schedule"]:
-        BELL_SCHEDULE.append(today.replace(hour=time["hour"], minute=time["minute"]))
+        try:
+            h = int(time[:2])
+            m = int(time[-2:])
+            BELL_SCHEDULE.append(today.replace(hour=h, minute=m))
+        except ValueError:
+            LOGGER.critical('Cannot parse a "bell_schedule" time from the config file. '
+                            f'The following time is formatted incorrectly: "{time}"')
+            quit_with_error()
 
 
 def setup_dirs():

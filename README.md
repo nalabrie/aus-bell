@@ -21,12 +21,13 @@
   * The `bell_schedule` array stores a dictionary of times in the following format:
 
   ```yaml
-    - hour: 13
-      minute: 42
+  bell_schedule:
+    - "09:15"
+    - "10:12"
   ```
 
 * Any amount of times can be added.
-* **IMPORTANT**: Make sure `hour` is in 24h format.
+* **IMPORTANT**: Make sure each time is in 24H `HH:MM` format.
 
 #### MacOS/Linux
 
