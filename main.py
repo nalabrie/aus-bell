@@ -284,7 +284,6 @@ def compare_urls():
     This determines which new links need downloaded and which need deleted/overwritten.
     IMPORTANT: make sure to call "delete_unused_media()" right after this function.
     """
-
     # iterate over the current and previous list of links
     for i, (new, old) in enumerate(zip_longest(ALL_URLS, PREV_URLS)):
         if new == old:
