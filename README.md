@@ -26,8 +26,8 @@
     - "10:12"
   ```
 
-* Any amount of times can be added.
-* **IMPORTANT**: Make sure each time is in 24H `HH:MM` format.
+  * Any amount of times can be added.
+  * **IMPORTANT**: Make sure each time is in 24H `HH:MM` format.
 
 #### MacOS/Linux
 
