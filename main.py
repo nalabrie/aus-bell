@@ -301,13 +301,6 @@ def compare_urls():
                     # DELETE MUST OCCUR RIGHT AFTER THIS FUNCTION (because of this situation)
                     TO_BE_DELETED_MEDIA_LIST_NUMBERS.append(i)
 
-    # check if a file was manually deleted by a user between runs
-    if len(CURRENT_MEDIA_LIST_NUMBERS) != len(PREV_URLS):
-        for i, _ in enumerate(CURRENT_MEDIA_LIST_NUMBERS):
-            if i not in CURRENT_MEDIA_LIST_NUMBERS and i not in NEEDED_MEDIA_LIST_NUMBERS:
-                # file was deleted, queue for download
-                NEEDED_MEDIA_LIST_NUMBERS.append(i)
-
 
 def delete_unused_media():
     """
